@@ -9,6 +9,7 @@ Assuming you have an account at least one of the BreadBytes trading bots.
 
 ## Getting Started 
 **More info coming soon** 
+-Kucoin not currently supported
 
 ## Comparing multiple bots on the same coin.
 This is not supported right now, please upload the csv files one at a time. 
