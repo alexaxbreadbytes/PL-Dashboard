@@ -6,5 +6,5 @@ matplotlib
 functools
 pathlib
 st_aggrid 
-import plotly
+plotly
 altair
