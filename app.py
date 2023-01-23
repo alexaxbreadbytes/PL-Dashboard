@@ -22,9 +22,6 @@ import matplotlib.pyplot as plt
 from pathlib import Path
 
 import streamlit as st
-from st_aggrid import AgGrid
-from st_aggrid.shared import JsCode
-from st_aggrid.grid_options_builder import GridOptionsBuilder
 import plotly.express as px
 import altair as alt
 

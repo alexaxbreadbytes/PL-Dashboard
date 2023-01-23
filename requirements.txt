@@ -3,6 +3,5 @@ datetime
 numpy
 matplotlib
 pathlib
-st_aggrid 
 plotly
 altair
