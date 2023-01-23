@@ -19,8 +19,6 @@ from datetime import datetime
 import numpy as np
 import datetime as dt
 import matplotlib.pyplot as plt
-
-import functools
 from pathlib import Path
 
 import streamlit as st
