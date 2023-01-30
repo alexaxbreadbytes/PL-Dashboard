@@ -173,6 +173,8 @@ def runapp() -> None:
 
     with st.sidebar.subheader("FAQ"):
         st.write(Path("FAQ_README.md").read_text())
+        
+    
     uploaded_data = st.file_uploader(
         "Drag and Drop files here or click Browse files.", type=[".csv", ".xlsx"], accept_multiple_files=False
     )
@@ -410,9 +412,9 @@ def runapp() -> None:
                         f"{100*get_rolling_stats(df,otimeheader, 7):.2f}%",
                     )
                     st.metric(
-                    "Rolling 30 Days",
+                    "Rolling 90 Days",
                         "",#f"{(1+get_rolling_stats(df,otimeheader, 30))*principal_balance:.2f}",
-                        f"{100*get_rolling_stats(df,otimeheader, 30):.2f}%",
+                        f"{100*get_rolling_stats(df,otimeheader, 90):.2f}%",
                     )
 
                 with col4: 
@@ -421,9 +423,9 @@ def runapp() -> None:
                         f"{row._4:.1f}%",
                     )
                     st.metric(
-                    "Rolling 90 Days",
+                    "Rolling 30 Days",
                         "",#f"{(1+get_rolling_stats(df,otimeheader, 30))*principal_balance:.2f}",
-                        f"{100*get_rolling_stats(df,otimeheader, 90):.2f}%",
+                        f"{100*get_rolling_stats(df,otimeheader, 30):.2f}%",
                     )
                     st.metric(
                     "Rolling 180 Days",
