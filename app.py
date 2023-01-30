@@ -15,7 +15,7 @@
 # +
 import csv 
 import pandas as pd
-from datetime import datetime
+from datetime import datetime, timedelta
 import numpy as np
 import datetime as dt
 import matplotlib.pyplot as plt
@@ -96,7 +96,7 @@ def get_headers(logtype):
     if logtype == "Kraken":
         otimeheader = 'time'
         cheader = 'pair'
-        plheader = 'margin'
+        plheader = 'amount'
         fmat = '%Y-%m-%d %H:%M:%S.%f'  
         
     if logtype == "OkX":
@@ -140,6 +140,17 @@ def get_hist_info(df_coin, principal_balance,plheader):
     pfactor = -1*np.round(grosswin/grossloss,2)
     return numtrades, numwin, numloss, winrate, pfactor
 @st.experimental_memo
+def get_rolling_stats(df,otimeheader, days):
+    rollend = datetime.today()-timedelta(days=days)
+    rolling_df = df[df[otimeheader] >= rollend]
+
+    if len(rolling_df) > 0:
+        rolling_perc = rolling_df['Return Per Trade'].cumprod().values[-1]-1
+    else: 
+        rolling_perc = 0
+    return rolling_perc
+
+@st.experimental_memo
 def filt_df(
     df: pd.DataFrame, cheader : str, symbol_selections: list[str]) -> pd.DataFrame:
     """
@@ -156,13 +167,12 @@ def filt_df(
 
 def runapp() -> None:
     st.header("Trading Bot Dashboard :bread: :moneybag:")
-    
+    st.write("Welcome to the Trading Bot Dashboard by BreadBytes! You can use this dashboard to track " +
+                 "the performance of our trading bots, or upload and track your own performance data from a supported exchange.")
     st.sidebar.header("FAQ")
 
     with st.sidebar.subheader("FAQ"):
         st.write(Path("FAQ_README.md").read_text())
-
-    st.subheader("Upload your CSV or XLSX file")
     uploaded_data = st.file_uploader(
         "Drag and Drop files here or click Browse files.", type=[".csv", ".xlsx"], accept_multiple_files=False
     )
@@ -350,25 +360,77 @@ def runapp() -> None:
         df['Cumulative P/L'] = (df['Compounded Return']-1)*principal_balance
         st.line_chart(data=df.dropna(), x='Exit Date', y='Cumulative P/L', use_container_width=True)
         
-
-        st.subheader("Summarized Results")
         df['Per Trade Return Rate'] = df['Return Per Trade']-1
         
-        results_df = pd.DataFrame([], columns = ['# of Trades', 'Wins', 'Losses', 'Win Rate', 'Profit Factor'])
+        totals = pd.DataFrame([], columns = ['# of Trades', 'Wins', 'Losses', 'Win Rate', 'Profit Factor'])
         data = get_hist_info(df.dropna(), principal_balance,'Per Trade Return Rate')
-        results_df.loc[len(results_df)] = list(i for i in data)
+        totals.loc[len(totals)] = list(i for i in data)
         
-        results_df['Cum. P/L'] = cum_pl-principal_balance
-        results_df['Cum. P/L (%)'] = 100*(cum_pl-principal_balance)/principal_balance
+        totals['Cum. P/L'] = cum_pl-principal_balance
+        totals['Cum. P/L (%)'] = 100*(cum_pl-principal_balance)/principal_balance
         #results_df['Avg. P/L'] = (cum_pl-principal_balance)/results_df['# of Trades'].values[0]
         #results_df['Avg. P/L (%)'] = 100*results_df['Avg. P/L'].values[0]/principal_balance
+        
+        st.header(f"{bot_selections} Results")
         if df.empty:
             st.error("Oops! None of the data provided matches your selection(s). Please try again.")
         else:
-            st.dataframe(results_df.style.format({'# of Trades': '{:.0f}','Wins': '{:.0f}','Losses': '{:.0f}','Win Rate': '{:.2f}%','Profit Factor' : '{:.2f}', 'Avg. P/L (%)': '{:.2f}%', 'Cum. P/L (%)': '{:.2f}%', 'Cum. P/L': '{:.2f}', 'Avg. P/L': '{:.2f}'})
-        .text_gradient(subset=['Win Rate'],cmap="RdYlGn", vmin = 0, vmax = 100)\
-        .text_gradient(subset=['Profit Factor'],cmap="RdYlGn", vmin = 0, vmax = 2), use_container_width=True)
+            #st.dataframe(totals.style.format({'# of Trades': '{:.0f}','Wins': '{:.0f}','Losses': '{:.0f}','Win Rate': '{:.2f}%','Profit Factor' : '{:.2f}', 'Avg. P/L (%)': '{:.2f}%', 'Cum. P/L (%)': '{:.2f}%', 'Cum. P/L': '{:.2f}', 'Avg. P/L': '{:.2f}'})
+        #.text_gradient(subset=['Win Rate'],cmap="RdYlGn", vmin = 0, vmax = 100)\
+        #.text_gradient(subset=['Profit Factor'],cmap="RdYlGn", vmin = 0, vmax = 2), use_container_width=True)
+            for row in totals.itertuples():
+                col1, col2, col3, col4 = st.columns(4)
+                with col1:
+                    st.metric(
+                        "Total Trades",
+                        f"{row._1:.0f}",
+                    )
+                    st.metric(
+                        "Profit Factor",
+                        f"{row._5:.2f}",
+                    )
+                with col2: 
+                    st.metric(
+                        "Wins",
+                        f"{row.Wins:.0f}",
+                    )
+                    st.metric(
+                        "Cumulative P/L",
+                        f"${row._6:.2f}",
+                        f"{row._7:.2f} %",
+                    )
+                with col3: 
+                    st.metric(
+                        "Losses",
+                        f"{row.Losses:.0f}",
+                    )
+                    st.metric(
+                    "Rolling 7 Days",
+                        "",#f"{(1+get_rolling_stats(df,otimeheader, 30))*principal_balance:.2f}",
+                        f"{100*get_rolling_stats(df,otimeheader, 7):.2f}%",
+                    )
+                    st.metric(
+                    "Rolling 30 Days",
+                        "",#f"{(1+get_rolling_stats(df,otimeheader, 30))*principal_balance:.2f}",
+                        f"{100*get_rolling_stats(df,otimeheader, 30):.2f}%",
+                    )
 
+                with col4: 
+                    st.metric(
+                        "Win Rate",
+                        f"{row._4:.1f}%",
+                    )
+                    st.metric(
+                    "Rolling 90 Days",
+                        "",#f"{(1+get_rolling_stats(df,otimeheader, 30))*principal_balance:.2f}",
+                        f"{100*get_rolling_stats(df,otimeheader, 90):.2f}%",
+                    )
+                    st.metric(
+                    "Rolling 180 Days",
+                        "",#f"{(1+get_rolling_stats(df,otimeheader, 30))*principal_balance:.2f}",
+                        f"{100*get_rolling_stats(df,otimeheader, 180):.2f}%",
+                    )
+                
     if logtype != "BreadBytes Historical Data":
         if no_errors:
             ##cheader = df.columns[df.isin(symbol_selections[0]).any()]    
@@ -395,7 +457,12 @@ def runapp() -> None:
             if logtype == "Kraken":
                 df = df.replace('\r\n','', regex=True) 
                 df[otimeheader] = [str(time.split(".")[0]) for time in df[otimeheader].values]
+                df = df[df['type'] == 'margin']
                 fmat = '%Y-%m-%d %H:%M:%S'
+                if len(df) == 0:
+                    st.error("File Type Error. Please upload a Ledger history file from Kraken.")
+                    no_errors = False
+        if no_errors:
 
             dateheader = 'Trade Date'
             theader = 'Trade Time'
@@ -485,7 +552,6 @@ def runapp() -> None:
             #plt.xlims=([principal_balance, principal_balance+plotdf[plheader].max() + 10])
             #plt.show()
             #st.pyplot(fig)
-
             st.subheader("Summarized Results")
             if df.empty:
                 st.error("Oops! None of the data provided matches your selection(s). Please try again.")
