@@ -159,9 +159,6 @@ def runapp() -> None:
     
     st.sidebar.header("Welcome to the Trading Bot Dashboard by BreadBytes!")
 
-    with st.sidebar.expander("How do I use this Dashboard?"):
-        st.write(Path("PL_README.md").read_text())
-        
     with st.sidebar.expander("FAQ"):
         st.write(Path("FAQ_README.md").read_text())
 
