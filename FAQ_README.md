@@ -1,4 +1,4 @@
-## ## Welcome to the BreadBytes Bot Dashboard! Here are some FAQ.
+## Welcome to the BreadBytes Bot Dashboard! Here are some FAQ.
 
 ### Q: Do these results include trading fees?
 
@@ -16,5 +16,5 @@ Currently, this dashboard does not support trading logs from Kucoin. At this tim
 The dashboard is currently set to 1x leverage. We are working on providing an accurate way to reflect users varied leverage choices across trades. 
 
 ### The dashboard isn't working correctly for me. 
-    Please check that you have selected the correct inputs for your file and that you have uploaded a supported file type. If you believe there is an error we need to fix, please reach out to: 
+Please check that you have selected the correct inputs for your file and that you have uploaded a supported file type. If you believe there is an error we need to fix, please reach out to: 
 
