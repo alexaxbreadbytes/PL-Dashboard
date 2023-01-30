@@ -365,13 +365,12 @@ def runapp() -> None:
         results_df['Cum. P/L (%)'] = 100*(cum_pl-principal_balance)/principal_balance
         #results_df['Avg. P/L'] = (cum_pl-principal_balance)/results_df['# of Trades'].values[0]
         #results_df['Avg. P/L (%)'] = 100*results_df['Avg. P/L'].values[0]/principal_balance
-        
         if df.empty:
             st.error("Oops! None of the data provided matches your selection(s). Please try again.")
         else:
             st.dataframe(results_df.style.format({'# of Trades': '{:.0f}','Wins': '{:.0f}','Losses': '{:.0f}','Win Rate': '{:.2f}%','Profit Factor' : '{:.2f}', 'Avg. P/L (%)': '{:.2f}%', 'Cum. P/L (%)': '{:.2f}%', 'Cum. P/L': '{:.2f}', 'Avg. P/L': '{:.2f}'})
-        .background_gradient(subset=['Win Rate'],cmap="RdYlGn", vmin = 0, vmax = 100)\
-        .background_gradient(subset=['Profit Factor'],cmap="RdYlGn", vmin = 0, vmax = 2), use_container_width=True)
+        .text_gradient(subset=['Win Rate'],cmap="RdYlGn", vmin = 0, vmax = 100)\
+        .text_gradient(subset=['Profit Factor'],cmap="RdYlGn", vmin = 0, vmax = 2), use_container_width=True)
 
     if logtype != "BreadBytes Historical Data":
         if no_errors:
@@ -497,8 +496,8 @@ def runapp() -> None:
                 #st.dataframe(results_df.style.background_gradient(subset=['Win Rate', 'Profit Factor', 'Cum. P/L (%)', 'Avg. P/L (%)'], cmap="RdYlGn"), width = 100)
                 #st.dataframe(results_df.style.background_gradient(subset=['Profit Factor'], cmap="RdYlGn", vmin = -1, vmax=1), use_container_width=True)
                 st.dataframe(results_df.style.format({'Win Rate': '{:.2f}%','Profit Factor' : '{:.2f}', 'Avg. P/L (%)': '{:.2f}%', 'Cum. P/L (%)': '{:.2f}%', 'Cum. P/L': '{:.2f}', 'Avg. P/L': '{:.2f}'})\
-            .background_gradient(subset=['Win Rate'],cmap="RdYlGn", vmin = 0, vmax = 100)\
-            .background_gradient(subset=['Profit Factor'],cmap="RdYlGn", vmin = 0, vmax = 2), use_container_width=True)
+            .text_gradient(subset=['Win Rate'],cmap="RdYlGn", vmin = 0, vmax = 100)\
+            .text_gradient(subset=['Profit Factor'],cmap="RdYlGn", vmin = 0, vmax = 2), use_container_width=True)
             #.highlight_min(subset=['Cum. P/L (%)', 'Avg. P/L (%)'], color='lightred')\
             #.highlight_max(subset=['Cum. P/L (%)', 'Avg. P/L (%)'], color='green'), use_container_width=True)
             #.background_gradient(subset=['Cum. P/L (%)', 'Avg. P/L (%)'],cmap="RdYlGn", vmin = -1, vmax = 1), use_container_width=True)
