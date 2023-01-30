@@ -227,18 +227,18 @@ def runapp() -> None:
     if logtype == "BreadBytes Historical Data": 
         if bot_selections == "Cinnamon Toast":
             uploaded_data = open("CT-Trade-Log.csv", "r")
-            df = pd.read_csv(uploaded_data)
+            df = pd.read_csv(uploaded_data, sep='\t')
             
             df.columns = ['Trade','Entry Date','Buy Price', 'Sell Price','Exit Date', 'P/L per token', 'P/L %', 'Drawdown %']
             df['Signal'] = ['Long']*len(df)
         elif bot_selections == "Short Bread":
             uploaded_data = open("SB-Trade-Log.csv", "r")
-            df = pd.read_csv(uploaded_data)
+            df = pd.read_csv(uploaded_data, sep='\t')
             
             df.columns = ['Trade','Signal','Entry Date','Buy Price', 'Sell Price','Exit Date', 'P/L per token', 'P/L %']
         elif bot_selections == "French Toast":
             uploaded_data = open("FT-Trade-Log.csv", "r")
-            df = pd.read_csv(uploaded_data)
+            df = pd.read_csv(uploaded_data, sep='\t')
             
             df.columns = ['Trade','Signal','Entry Date','Buy Price', 'Sell Price','Exit Date', 'P/L per token', 'P/L %']
             df.dropna(inplace=True)
@@ -322,116 +322,121 @@ def runapp() -> None:
         df[theader] = [dateutil.parser.parse(time).time() for time in df[theader]]
 
         df = df[(df[dateheader] >= startdate) & (df[dateheader] <= enddate)]
-
-        df['DCA'] = np.nan
-
-        for exit in pd.unique(df['Exit Date']):
-            df_exit = df[df['Exit Date']==exit]
-            for i in range(len(df_exit)):
-                ind = df_exit.index[i]
-                df.loc[ind,'DCA'] = i+1
-                
-        dca_map = {1: dca1/100, 2: dca2/100, 3: dca3/100, 4: dca4/100}
-
-        df['DCA %'] = df['DCA'].map(dca_map)
-
-        signal_map = {'Long': 1, 'Short':-1} # 1 for long #-1 for short
-
-        df['Calculated Return %'] = (df['Signal'].map(signal_map)*((df['Sell Price']-df['Buy Price'])/df['Buy Price'])*(df['DCA %']))
-
-        df['Return Per Trade'] = np.nan
-
-        g = df.groupby('Exit Date').sum(numeric_only=True)['Calculated Return %'].reset_index(name='Return Per Trade')
-
-        df.loc[df['DCA']==1.0,'Return Per Trade'] = 1+g['Return Per Trade'].values
-
-        df['Compounded Return'] = df['Return Per Trade'].cumprod()
-        cum_pl = df.loc[df.index[-1],'Compounded Return']*principal_balance
-
-        effective_return = df.loc[df.index[-1],'Compounded Return'] - 1
         
-        st.subheader(f"Results for {bot_selections}")
-        if len(bot_selections) > 1:
-            st.metric(
-                "Total Account Balance",
-                f"${cum_pl:.2f}",
-                f"{100*(cum_pl-principal_balance)/principal_balance:.2f} %",
-            )
-            
-        st.subheader(f"Historical Performance")
-        df['Cumulative P/L'] = (df['Compounded Return']-1)*principal_balance
-        st.line_chart(data=df.dropna(), x='Exit Date', y='Cumulative P/L', use_container_width=True)
-        
-        df['Per Trade Return Rate'] = df['Return Per Trade']-1
-        
-        totals = pd.DataFrame([], columns = ['# of Trades', 'Wins', 'Losses', 'Win Rate', 'Profit Factor'])
-        data = get_hist_info(df.dropna(), principal_balance,'Per Trade Return Rate')
-        totals.loc[len(totals)] = list(i for i in data)
-        
-        totals['Cum. P/L'] = cum_pl-principal_balance
-        totals['Cum. P/L (%)'] = 100*(cum_pl-principal_balance)/principal_balance
-        #results_df['Avg. P/L'] = (cum_pl-principal_balance)/results_df['# of Trades'].values[0]
-        #results_df['Avg. P/L (%)'] = 100*results_df['Avg. P/L'].values[0]/principal_balance
-        
-        st.header(f"{bot_selections} Results")
-        if df.empty:
-            st.error("Oops! None of the data provided matches your selection(s). Please try again.")
-        else:
-            #st.dataframe(totals.style.format({'# of Trades': '{:.0f}','Wins': '{:.0f}','Losses': '{:.0f}','Win Rate': '{:.2f}%','Profit Factor' : '{:.2f}', 'Avg. P/L (%)': '{:.2f}%', 'Cum. P/L (%)': '{:.2f}%', 'Cum. P/L': '{:.2f}', 'Avg. P/L': '{:.2f}'})
-        #.text_gradient(subset=['Win Rate'],cmap="RdYlGn", vmin = 0, vmax = 100)\
-        #.text_gradient(subset=['Profit Factor'],cmap="RdYlGn", vmin = 0, vmax = 2), use_container_width=True)
-            for row in totals.itertuples():
-                col1, col2, col3, col4 = st.columns(4)
-                with col1:
-                    st.metric(
-                        "Total Trades",
-                        f"{row._1:.0f}",
-                    )
-                    st.metric(
-                        "Profit Factor",
-                        f"{row._5:.2f}",
-                    )
-                with col2: 
-                    st.metric(
-                        "Wins",
-                        f"{row.Wins:.0f}",
-                    )
-                    st.metric(
-                        "Cumulative P/L",
-                        f"${row._6:.2f}",
-                        f"{row._7:.2f} %",
-                    )
-                with col3: 
-                    st.metric(
-                        "Losses",
-                        f"{row.Losses:.0f}",
-                    )
-                    st.metric(
-                    "Rolling 7 Days",
-                        "",#f"{(1+get_rolling_stats(df,otimeheader, 30))*principal_balance:.2f}",
-                        f"{100*get_rolling_stats(df,otimeheader, 7):.2f}%",
-                    )
-                    st.metric(
-                    "Rolling 90 Days",
-                        "",#f"{(1+get_rolling_stats(df,otimeheader, 30))*principal_balance:.2f}",
-                        f"{100*get_rolling_stats(df,otimeheader, 90):.2f}%",
-                    )
+        if len(df) == 0:
+                st.error("There are no available trades matching your selections. Please try again!")
+                no_errors = False
+        if no_errors:
 
-                with col4: 
-                    st.metric(
-                        "Win Rate",
-                        f"{row._4:.1f}%",
-                    )
-                    st.metric(
-                    "Rolling 30 Days",
-                        "",#f"{(1+get_rolling_stats(df,otimeheader, 30))*principal_balance:.2f}",
-                        f"{100*get_rolling_stats(df,otimeheader, 30):.2f}%",
-                    )
-                    st.metric(
-                    "Rolling 180 Days",
-                        "",#f"{(1+get_rolling_stats(df,otimeheader, 30))*principal_balance:.2f}",
-                        f"{100*get_rolling_stats(df,otimeheader, 180):.2f}%",
-                    )
+            df['DCA'] = np.nan
+
+            for exit in pd.unique(df['Exit Date']):
+                df_exit = df[df['Exit Date']==exit]
+                for i in range(len(df_exit)):
+                    ind = df_exit.index[i]
+                    df.loc[ind,'DCA'] = i+1
+
+            dca_map = {1: dca1/100, 2: dca2/100, 3: dca3/100, 4: dca4/100}
+
+            df['DCA %'] = df['DCA'].map(dca_map)
+
+            signal_map = {'Long': 1, 'Short':-1} # 1 for long #-1 for short
+
+            df['Calculated Return %'] = (df['Signal'].map(signal_map)*((df['Sell Price']-df['Buy Price'])/df['Buy Price'])*(df['DCA %']))
+
+            df['Return Per Trade'] = np.nan
+
+            g = df.groupby('Exit Date').sum(numeric_only=True)['Calculated Return %'].reset_index(name='Return Per Trade')
+
+            df.loc[df['DCA']==1.0,'Return Per Trade'] = 1+g['Return Per Trade'].values
+
+            df['Compounded Return'] = df['Return Per Trade'].cumprod()
+            cum_pl = df.loc[df.index[-1],'Compounded Return']*principal_balance
+
+            effective_return = df.loc[df.index[-1],'Compounded Return'] - 1
+
+            st.subheader(f"Results for {bot_selections}")
+            if len(bot_selections) > 1:
+                st.metric(
+                    "Total Account Balance",
+                    f"${cum_pl:.2f}",
+                    f"{100*(cum_pl-principal_balance)/principal_balance:.2f} %",
+                )
+
+            st.subheader(f"Historical Performance")
+            df['Cumulative P/L'] = (df['Compounded Return']-1)*principal_balance
+            st.line_chart(data=df.dropna(), x='Exit Date', y='Cumulative P/L', use_container_width=True)
+
+            df['Per Trade Return Rate'] = df['Return Per Trade']-1
+
+            totals = pd.DataFrame([], columns = ['# of Trades', 'Wins', 'Losses', 'Win Rate', 'Profit Factor'])
+            data = get_hist_info(df.dropna(), principal_balance,'Per Trade Return Rate')
+            totals.loc[len(totals)] = list(i for i in data)
+
+            totals['Cum. P/L'] = cum_pl-principal_balance
+            totals['Cum. P/L (%)'] = 100*(cum_pl-principal_balance)/principal_balance
+            #results_df['Avg. P/L'] = (cum_pl-principal_balance)/results_df['# of Trades'].values[0]
+            #results_df['Avg. P/L (%)'] = 100*results_df['Avg. P/L'].values[0]/principal_balance
+
+            st.header(f"{bot_selections} Results")
+            if df.empty:
+                st.error("Oops! None of the data provided matches your selection(s). Please try again.")
+            else:
+                #st.dataframe(totals.style.format({'# of Trades': '{:.0f}','Wins': '{:.0f}','Losses': '{:.0f}','Win Rate': '{:.2f}%','Profit Factor' : '{:.2f}', 'Avg. P/L (%)': '{:.2f}%', 'Cum. P/L (%)': '{:.2f}%', 'Cum. P/L': '{:.2f}', 'Avg. P/L': '{:.2f}'})
+            #.text_gradient(subset=['Win Rate'],cmap="RdYlGn", vmin = 0, vmax = 100)\
+            #.text_gradient(subset=['Profit Factor'],cmap="RdYlGn", vmin = 0, vmax = 2), use_container_width=True)
+                for row in totals.itertuples():
+                    col1, col2, col3, col4 = st.columns(4)
+                    with col1:
+                        st.metric(
+                            "Total Trades",
+                            f"{row._1:.0f}",
+                        )
+                        st.metric(
+                            "Profit Factor",
+                            f"{row._5:.2f}",
+                        )
+                    with col2: 
+                        st.metric(
+                            "Wins",
+                            f"{row.Wins:.0f}",
+                        )
+                        st.metric(
+                            "Cumulative P/L",
+                            f"${row._6:.2f}",
+                            f"{row._7:.2f} %",
+                        )
+                    with col3: 
+                        st.metric(
+                            "Losses",
+                            f"{row.Losses:.0f}",
+                        )
+                        st.metric(
+                        "Rolling 7 Days",
+                            "",#f"{(1+get_rolling_stats(df,otimeheader, 30))*principal_balance:.2f}",
+                            f"{100*get_rolling_stats(df,otimeheader, 7):.2f}%",
+                        )
+                        st.metric(
+                        "Rolling 90 Days",
+                            "",#f"{(1+get_rolling_stats(df,otimeheader, 30))*principal_balance:.2f}",
+                            f"{100*get_rolling_stats(df,otimeheader, 90):.2f}%",
+                        )
+
+                    with col4: 
+                        st.metric(
+                            "Win Rate",
+                            f"{row._4:.1f}%",
+                        )
+                        st.metric(
+                        "Rolling 30 Days",
+                            "",#f"{(1+get_rolling_stats(df,otimeheader, 30))*principal_balance:.2f}",
+                            f"{100*get_rolling_stats(df,otimeheader, 30):.2f}%",
+                        )
+                        st.metric(
+                        "Rolling 180 Days",
+                            "",#f"{(1+get_rolling_stats(df,otimeheader, 30))*principal_balance:.2f}",
+                            f"{100*get_rolling_stats(df,otimeheader, 180):.2f}%",
+                        )
                 
     if logtype != "BreadBytes Historical Data":
         if no_errors:
