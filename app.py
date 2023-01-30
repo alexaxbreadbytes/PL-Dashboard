@@ -157,7 +157,7 @@ def filt_df(
 def runapp() -> None:
     st.header("Trading Bot Dashboard :bread: :moneybag:")
     
-    st.sidebar.header("Welcome to the Trading Bot Dashboard by BreadBytes!")
+    st.sidebar.header("FAQ")
 
     with st.sidebar.subheader("FAQ"):
         st.write(Path("FAQ_README.md").read_text())
