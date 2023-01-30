@@ -159,7 +159,7 @@ def runapp() -> None:
     
     st.sidebar.header("Welcome to the Trading Bot Dashboard by BreadBytes!")
 
-    with st.sidebar.expander("FAQ"):
+    with st.sidebar("FAQ"):
         st.write(Path("FAQ_README.md").read_text())
 
     st.subheader("Upload your CSV or XLSX file")
