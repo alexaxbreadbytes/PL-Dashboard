@@ -351,7 +351,7 @@ def runapp() -> None:
             df.loc[df['DCA']==1.0,'Return Per Trade'] = 1+g['Return Per Trade'].values
 
             df['Compounded Return'] = df['Return Per Trade'].cumprod()
-            cum_pl = df.loc[df.index[-1],'Compounded Return']*principal_balance
+            cum_pl = df.loc[df.dropna().index[-1],'Compounded Return']*principal_balance
 
             effective_return = df.loc[df.index[-1],'Compounded Return'] - 1
 
