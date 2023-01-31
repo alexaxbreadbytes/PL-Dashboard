@@ -145,7 +145,7 @@ def get_rolling_stats(df,otimeheader, days):
     rolling_df = df[df[otimeheader] >= rollend]
 
     if len(rolling_df) > 0:
-        rolling_perc = rolling_df['Return Per Trade'].cumprod().values[-1]-1
+        rolling_perc = rolling_df['Return Per Trade'].dropna().cumprod().values[-1]-1
     else: 
         rolling_perc = 0
     return rolling_perc
