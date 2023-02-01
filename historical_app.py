@@ -114,6 +114,10 @@ def my_style(v, props=''):
     props = 'color:red' if v < 0 else 'color:green'
     return props
 
+@st.cache(ttl=24*3600)
+def load_data(filename):
+    return pd.read_csv(open(filename, "r"), sep='\t')
+
 def runapp() -> None:
     bot_selections = "Cinnamon Toast"
     otimeheader = 'Entry Date'
@@ -129,30 +133,10 @@ def runapp() -> None:
     st.subheader("Choose your settings:")
     no_errors = True
     
-    if bot_selections == "Cinnamon Toast":
-        uploaded_data = open("CT-Trade-Log.csv", "r")
-        df = pd.read_csv(uploaded_data, sep='\t')
+    df = load_data('CT-Trade-Log.csv')
 
-        df.columns = ['Trade','Entry Date','Buy Price', 'Sell Price','Exit Date', 'P/L per token', 'P/L %', 'Drawdown %']
-        df.insert(1, 'Signal', ['Long']*len(df)) 
-        
-    elif bot_selections == "Cosmic Cupcake":
-        uploaded_data = open("CT-Trade-Log.csv", "r")
-        df = pd.read_csv(uploaded_data, sep='\t')
-
-        df.columns = ['Trade','Entry Date','Buy Price', 'Sell Price','Exit Date', 'P/L per token', 'P/L %', 'Drawdown %']
-        df['Signal'] = ['Long']*len(df)
-    elif bot_selections == "Short Bread":
-        uploaded_data = open("SB-Trade-Log.csv", "r")
-        df = pd.read_csv(uploaded_data, sep='\t')
-
-        df.columns = ['Trade','Signal','Entry Date','Buy Price', 'Sell Price','Exit Date', 'P/L per token', 'P/L %']
-    elif bot_selections == "French Toast":
-        uploaded_data = open("FT-Trade-Log.csv", "r")
-        df = pd.read_csv(uploaded_data, sep='\t')
-
-        df.columns = ['Trade','Signal','Entry Date','Buy Price', 'Sell Price','Exit Date', 'P/L per token', 'P/L %']
-        df.dropna(inplace=True)
+    df.columns = ['Trade','Entry Date','Buy Price', 'Sell Price','Exit Date', 'P/L per token', 'P/L %', 'Drawdown %']
+    df.insert(1, 'Signal', ['Long']*len(df)) 
         
     with st.form("user input", ):
         if no_errors:
@@ -177,11 +161,14 @@ def runapp() -> None:
                     no_errors = False 
             with st.container(): 
                 col1,col2 = st.columns(2) 
-                with col1:
-                    principal_balance = st.number_input('Starting Balance', min_value=0.00, value=1000.00, max_value= 1000000.00, step=10.00)
+                
                 with col2:
                     lev = st.number_input('Leverage', min_value=1, value=1, max_value= 5, step=1)
-
+                with col1:
+                    principal_balance = st.number_input('Starting Balance', min_value=0.00, value=1000.00, max_value= 30000.00/lev, step=.01)
+                    if principal_balance*lev > 30000.00: 
+                        
+                        
         if bot_selections == "Cinnamon Toast":
             with st.container():
                 col1, col2, col3, col4 = st.columns(4)
