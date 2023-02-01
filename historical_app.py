@@ -25,6 +25,7 @@ import streamlit as st
 import plotly.express as px
 import altair as alt
 import dateutil.parser
+import copy
 
 
 # +
@@ -114,9 +115,12 @@ def my_style(v, props=''):
     props = 'color:red' if v < 0 else 'color:green'
     return props
 
-@st.cache(ttl=24*3600)
+@st.cache(ttl=24*3600, allow_output_mutation=True)
 def load_data(filename):
-    return pd.read_csv(open(filename, "r"), sep='\t')
+    df = pd.read_csv(open(filename,'r'), sep='\t') # so as not to mutate cached value 
+    df.columns = ['Trade','Entry Date','Buy Price', 'Sell Price','Exit Date', 'P/L per token', 'P/L %', 'Drawdown %']
+    df.insert(1, 'Signal', ['Long']*len(df)) 
+    return df
 
 def runapp() -> None:
     bot_selections = "Cinnamon Toast"
@@ -133,11 +137,9 @@ def runapp() -> None:
     st.subheader("Choose your settings:")
     no_errors = True
     
-    df = load_data('CT-Trade-Log.csv')
-
-    df.columns = ['Trade','Entry Date','Buy Price', 'Sell Price','Exit Date', 'P/L per token', 'P/L %', 'Drawdown %']
-    df.insert(1, 'Signal', ['Long']*len(df)) 
-        
+    data = load_data("CT-Trade-Log.csv")
+    df = data.copy(deep=True)
+    
     with st.form("user input", ):
         if no_errors:
             with st.container():
