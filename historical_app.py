@@ -29,50 +29,6 @@ import copy
 
 
 # +
-class color:
-    PURPLE = '\033[95m'
-    CYAN = '\033[96m'
-    DARKCYAN = '\033[36m'
-    BLUE = '\033[94m'
-    GREEN = '\033[92m'
-    YELLOW = '\033[93m'
-    RED = '\033[91m'
-    BOLD = '\033[1m'
-    UNDERLINE = '\033[4m'
-    END = '\033[0m'
-    
-@st.experimental_memo    
-def print_PL(amnt, thresh, extras = "" ):
-    if amnt > 0:
-        return color.BOLD + color.GREEN + str(amnt) + extras + color.END
-    elif amnt < 0:
-        return color.BOLD + color.RED + str(amnt)+ extras + color.END
-    elif np.isnan(amnt):
-        return str(np.nan)
-    else:
-        return str(amnt + extras)
-    
-@st.experimental_memo    
-def get_coin_info(df_coin, principal_balance,plheader):
-    numtrades = int(len(df_coin))
-    numwin = int(sum(df_coin[plheader] > 0))
-    numloss = int(sum(df_coin[plheader] < 0))
-    winrate = np.round(100*numwin/numtrades,2)
-    
-    grosswin = sum(df_coin[df_coin[plheader] > 0][plheader])
-    grossloss = sum(df_coin[df_coin[plheader] < 0][plheader])
-    if grossloss != 0:
-        pfactor = -1*np.round(grosswin/grossloss,2)
-    else: 
-        pfactor = np.nan
-    
-    cum_PL = np.round(sum(df_coin[plheader].values),2)
-    cum_PL_perc = np.round(100*cum_PL/principal_balance,2)
-    mean_PL = np.round(sum(df_coin[plheader].values/len(df_coin)),2)
-    mean_PL_perc = np.round(100*mean_PL/principal_balance,2)
-    
-    return numtrades, numwin, numloss, winrate, pfactor, cum_PL, cum_PL_perc, mean_PL, mean_PL_perc
-
 @st.experimental_memo
 def get_hist_info(df_coin, principal_balance,plheader):
     numtrades = int(len(df_coin))
@@ -116,10 +72,47 @@ def my_style(v, props=''):
     return props
 
 @st.cache(ttl=24*3600, allow_output_mutation=True)
-def load_data(filename):
+def load_data(filename, otimeheader, plheader, fmat):
     df = pd.read_csv(open(filename,'r'), sep='\t') # so as not to mutate cached value 
     df.columns = ['Trade','Entry Date','Buy Price', 'Sell Price','Exit Date', 'P/L per token', 'P/L %', 'Drawdown %']
     df.insert(1, 'Signal', ['Long']*len(df)) 
+    
+    df['Buy Price'] = df['Buy Price'].str.replace('$', '', regex=True)
+    df['Sell Price'] = df['Sell Price'].str.replace('$', '', regex=True)
+    df['Buy Price'] = df['Buy Price'].str.replace(',', '', regex=True)
+    df['Sell Price'] = df['Sell Price'].str.replace(',', '', regex=True)
+    df['P/L per token'] = df['P/L per token'].str.replace('$', '', regex=True)
+    df['P/L %'] = df['P/L %'].str.replace('%', '', regex=True)
+
+    df['Buy Price'] = pd.to_numeric(df['Buy Price'])
+    df['Sell Price'] = pd.to_numeric(df['Sell Price'])
+    df['P/L per token'] = pd.to_numeric(df['P/L per token'])
+    df['P/L %'] = pd.to_numeric(df['P/L %'])
+
+    dateheader = 'Date'
+    theader = 'Time'
+
+    df[dateheader] = [tradetimes.split(" ")[0] for tradetimes in df[otimeheader].values]
+    df[theader] = [tradetimes.split(" ")[1] for tradetimes in df[otimeheader].values]
+
+    df[otimeheader]= [dateutil.parser.parse(date+' '+time)
+                              for date,time in zip(df[dateheader],df[theader])]
+
+    df[otimeheader] = pd.to_datetime(df[otimeheader])
+    df['Exit Date'] = pd.to_datetime(df['Exit Date'])
+    df.sort_values(by=otimeheader, inplace=True)
+
+    df[dateheader] = [dateutil.parser.parse(date).date() for date in df[dateheader]]
+    df[theader] = [dateutil.parser.parse(time).time() for time in df[theader]]
+    df['Trade'] = df.index + 1 #reindex
+
+    df['DCA'] = np.nan
+
+    for exit in pd.unique(df['Exit Date']):
+        df_exit = df[df['Exit Date']==exit]
+        for i in range(len(df_exit)):
+            ind = df_exit.index[i]
+            df.loc[ind,'DCA'] = i+1
     return df
 
 def runapp() -> None:
@@ -137,9 +130,22 @@ def runapp() -> None:
     st.subheader("Choose your settings:")
     no_errors = True
     
-    data = load_data("CT-Trade-Log.csv")
+    data = load_data("CT-Trade-Log.csv",otimeheader, plheader, fmat)
     df = data.copy(deep=True)
     
+    grouped_df = df.groupby('Exit Date').agg({'Signal':'min','Entry Date': 'min','Exit Date': 'max','Buy Price': 'mean',
+                             'Sell Price' : 'max',
+                             'P/L per token': 'mean', 
+                             'P/L %':lambda x: np.round(x.sum()/4,2), 
+                             'DCA': 'max'})
+    grouped_df.index = range(1, len(grouped_df)+1)
+    grouped_df.rename(columns={'DCA' : '# of DCAs', 'Buy Price':'Avg. Buy Price',
+                               'P/L per token':'Avg. P/L per token', 
+                               'P/L %':'Avg. P/L % (25% DCA)'}, inplace=True)
+    
+    dateheader = 'Date'
+    theader = 'Time'
+
     with st.form("user input", ):
         if no_errors:
             with st.container():
@@ -187,47 +193,12 @@ def runapp() -> None:
                 
                 
     if submitted and no_errors:
-        #calculate historical data cumulative performance 
-        df['Buy Price'] = df['Buy Price'].str.replace('$', '', regex=True)
-        df['Sell Price'] = df['Sell Price'].str.replace('$', '', regex=True)
-        df['Buy Price'] = df['Buy Price'].str.replace(',', '', regex=True)
-        df['Sell Price'] = df['Sell Price'].str.replace(',', '', regex=True)
-
-        df['Buy Price'] = pd.to_numeric(df['Buy Price'])
-        df['Sell Price'] = pd.to_numeric(df['Sell Price'])
-
-        dateheader = 'Date'
-        theader = 'Time'
-
-        df[dateheader] = [tradetimes.split(" ")[0] for tradetimes in df[otimeheader].values]
-        df[theader] = [tradetimes.split(" ")[1] for tradetimes in df[otimeheader].values]
-
-        df[otimeheader]= [dateutil.parser.parse(date+' '+time)
-                                  for date,time in zip(df[dateheader],df[theader])]
-
-        #df[dateheader] = pd.to_datetime(df[dateheader])
-
-        df[otimeheader] = pd.to_datetime(df[otimeheader])
-        df['Exit Date'] = pd.to_datetime(df['Exit Date'])
-        df.sort_values(by=otimeheader, inplace=True)
-
-        df[dateheader] = [dateutil.parser.parse(date).date() for date in df[dateheader]]
-        df[theader] = [dateutil.parser.parse(time).time() for time in df[theader]]
-
         df = df[(df[dateheader] >= startdate) & (df[dateheader] <= enddate)]
 
         if len(df) == 0:
                 st.error("There are no available trades matching your selections. Please try again!")
                 no_errors = False
         if no_errors:
-
-            df['DCA'] = np.nan
-
-            for exit in pd.unique(df['Exit Date']):
-                df_exit = df[df['Exit Date']==exit]
-                for i in range(len(df_exit)):
-                    ind = df_exit.index[i]
-                    df.loc[ind,'DCA'] = i+1
 
             dca_map = {1: dca1/100, 2: dca2/100, 3: dca3/100, 4: dca4/100}
 
@@ -333,16 +304,10 @@ def runapp() -> None:
                             "",#f"{(1+get_rolling_stats(df,otimeheader, 30))*principal_balance:.2f}",
                             f"{100*get_rolling_stats(df,otimeheader, 180):.2f}%",
                         )
-        #['Trade','Entry Date','Buy Price', 'Sell Price','Exit Date', 'P/L per token', 'P/L %', 'Drawdown %'] 
-    df['P/L per token'] = df['P/L per token'].str.replace('$', '', regex=True)
-    df['P/L %'] = df['P/L %'].str.replace('%', '', regex=True)
-    
-    df['P/L per token'] = pd.to_numeric(df['P/L per token'])
-    df['P/L %'] = pd.to_numeric(df['P/L %'])
     st.subheader("Trade Logs")
-    st.dataframe(df.iloc[:,0:8].style.format({'P/L per token':'${:.2f}', 'P/L %':'{:.2f}%'})\
-    .applymap(my_style,subset=['P/L per token'])\
-    .applymap(my_style,subset=['P/L %']), use_container_width=True)
+    st.dataframe(grouped_df.style.format({'Avg. Buy Price': '${:.2f}', 'Sell Price': '${:.2f}','# of DCAs':'{:.0f}', 'Avg. P/L per token':'${:.2f}', 'Avg. P/L % (25% DCA)':'{:.2f}%'})\
+    .applymap(my_style,subset=['Avg. P/L per token'])\
+    .applymap(my_style,subset=['Avg. P/L % (25% DCA)']), use_container_width=True)
     
 if __name__ == "__main__":
     st.set_page_config(
