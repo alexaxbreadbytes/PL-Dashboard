@@ -278,11 +278,13 @@ def runapp() -> None:
             #.text_gradient(subset=['Profit Factor'],cmap="RdYlGn", vmin = 0, vmax = 2), use_container_width=True)
                 for row in totals.itertuples():
                     col1, col2, col3, col4 = st.columns(4)
+                    c1, c2, c3, c4 = st.columns(4)
                     with col1:
                         st.metric(
                             "Total Trades",
                             f"{row._1:.0f}",
                         )
+                    with c1:
                         st.metric(
                             "Profit Factor",
                             f"{row._5:.2f}",
@@ -292,6 +294,7 @@ def runapp() -> None:
                             "Wins",
                             f"{row.Wins:.0f}",
                         )
+                    with c2:
                         st.metric(
                             "Cumulative P/L",
                             f"${row._6:.2f}",
@@ -302,15 +305,16 @@ def runapp() -> None:
                             "Losses",
                             f"{row.Losses:.0f}",
                         )
+                    with c3:
                         st.metric(
                         "Rolling 7 Days",
                             "",#f"{(1+get_rolling_stats(df,otimeheader, 30))*principal_balance:.2f}",
                             f"{100*get_rolling_stats(df,otimeheader, 7):.2f}%",
                         )
                         st.metric(
-                        "Rolling 90 Days",
+                        "Rolling 30 Days",
                             "",#f"{(1+get_rolling_stats(df,otimeheader, 30))*principal_balance:.2f}",
-                            f"{100*get_rolling_stats(df,otimeheader, 90):.2f}%",
+                            f"{100*get_rolling_stats(df,otimeheader, 30):.2f}%",
                         )
 
                     with col4: 
@@ -318,10 +322,11 @@ def runapp() -> None:
                             "Win Rate",
                             f"{row._4:.1f}%",
                         )
+                    with c4:
                         st.metric(
-                        "Rolling 30 Days",
+                        "Rolling 90 Days",
                             "",#f"{(1+get_rolling_stats(df,otimeheader, 30))*principal_balance:.2f}",
-                            f"{100*get_rolling_stats(df,otimeheader, 30):.2f}%",
+                            f"{100*get_rolling_stats(df,otimeheader, 90):.2f}%",
                         )
                         st.metric(
                         "Rolling 180 Days",
