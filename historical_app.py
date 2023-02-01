@@ -161,28 +161,23 @@ def runapp() -> None:
                     no_errors = False 
             with st.container(): 
                 col1,col2 = st.columns(2) 
-                
                 with col2:
                     lev = st.number_input('Leverage', min_value=1, value=1, max_value= 5, step=1)
                 with col1:
                     principal_balance = st.number_input('Starting Balance', min_value=0.00, value=1000.00, max_value= 30000.00/lev, step=.01)
-                    if principal_balance*lev > 30000.00: 
+                    #if principal_balance*lev > 30000.00: 
                         
-                        
-        if bot_selections == "Cinnamon Toast":
-            with st.container():
-                col1, col2, col3, col4 = st.columns(4)
-                with col1: 
-                    dca1 = st.number_input('DCA 1 Allocation', min_value=0, value=25, max_value= 100, step=1)
-                with col2: 
-                    dca2 = st.number_input('DCA 2 Allocation', min_value=0, value=25, max_value= 100, step=1)
-                with col3: 
-                    dca3 = st.number_input('DCA 3 Allocation', min_value=0, value=25, max_value= 100, step=1)
-                with col4: 
-                    dca4 = st.number_input('DCA 4 Allocation', min_value=0, value=25, max_value= 100, step=1)
-        else: 
-            dca1=100; dca2=0; dca3=0; dca4=0; 
-        
+        with st.container():
+            col1, col2, col3, col4 = st.columns(4)
+            with col1: 
+                dca1 = st.number_input('DCA 1 Allocation', min_value=0, value=25, max_value= 100, step=1)
+            with col2: 
+                dca2 = st.number_input('DCA 2 Allocation', min_value=0, value=25, max_value= 100, step=1)
+            with col3: 
+                dca3 = st.number_input('DCA 3 Allocation', min_value=0, value=25, max_value= 100, step=1)
+            with col4: 
+                dca4 = st.number_input('DCA 4 Allocation', min_value=0, value=25, max_value= 100, step=1)
+
         #hack way to get button centered 
         c = st.columns(9)
         with c[4]: 
