@@ -75,7 +75,7 @@ def my_style(v, props=''):
     return props
 
 @st.cache(ttl=24*3600, allow_output_mutation=True)
-def load_data(filename, otimeheader, plheader, fmat):
+def load_data(filename, otimeheader, fmat):
     df = pd.read_csv(open(filename,'r'), sep='\t') # so as not to mutate cached value 
     df.columns = ['Trade','Entry Date','Buy Price', 'Sell Price','Exit Date', 'P/L per token', 'P/L %', 'Drawdown %']
     df.insert(1, 'Signal', ['Long']*len(df)) 
@@ -121,7 +121,6 @@ def load_data(filename, otimeheader, plheader, fmat):
 def runapp() -> None:
     bot_selections = "Cinnamon Toast"
     otimeheader = 'Entry Date'
-    plheader = 'Calculated P/L'
     fmat = '%Y-%m-%d %H:%M:%S'
     dollar_cap = 30000.00
     fees = .075/100
@@ -135,18 +134,8 @@ def runapp() -> None:
     st.subheader("Choose your settings:")
     no_errors = True
     
-    data = load_data("CT-Trade-Log.csv",otimeheader, plheader, fmat)
+    data = load_data("CT-Trade-Log.csv",otimeheader, fmat)
     df = data.copy(deep=True)
-    
-    grouped_df = df.groupby('Exit Date').agg({'Signal':'min','Entry Date': 'min','Exit Date': 'max','Buy Price': 'mean',
-                             'Sell Price' : 'max',
-                             'P/L per token': 'mean', 
-                             'P/L %':lambda x: np.round(x.sum()/4,2), 
-                             'DCA': 'max'})
-    grouped_df.index = range(1, len(grouped_df)+1)
-    grouped_df.rename(columns={'DCA' : '# of DCAs', 'Buy Price':'Avg. Buy Price',
-                               'P/L per token':'Avg. P/L per token', 
-                               'P/L %':'P/L % (25% DCA)'}, inplace=True)
     
     dateheader = 'Date'
     theader = 'Time'
@@ -163,7 +152,7 @@ def runapp() -> None:
                         no_errors = False 
                 with col2:
                     try:
-                        enddate = st.date_input("End Date", value=pd.to_datetime(df[otimeheader]).max())
+                        enddate = st.date_input("End Date", value=datetime.today())
                     except:
                         st.error("Please select your exchange or upload a supported trade log file.")
                         no_errors = False 
@@ -312,10 +301,30 @@ def runapp() -> None:
                             "",#f"{(1+get_rolling_stats(df,otimeheader, 30))*principal_balance:.2f}",
                             f"{get_rolling_stats(df,lev, otimeheader, 180):.2f}%",
                         )
+    if submitted:                     
+        grouped_df = df.groupby('Exit Date').agg({'Signal':'min','Entry Date': 'min','Exit Date': 'max','Buy Price': 'mean',
+                                 'Sell Price' : 'max',
+                                 'P/L per token': 'mean', 
+                                 'Calculated Return %' : lambda x: np.round(100*lev*x.sum(),2), 
+                                 'DCA': 'max'})
+        grouped_df.index = range(1, len(grouped_df)+1)
+        grouped_df.rename(columns={'DCA' : '# of DCAs', 'Buy Price':'Avg. Buy Price',
+                                   'P/L per token':'Avg. P/L per token', 
+                                   'Calculated Return %':'P/L %'}, inplace=True)
+    else: 
+        grouped_df = df.groupby('Exit Date').agg({'Signal':'min','Entry Date': 'min','Exit Date': 'max','Buy Price': 'mean',
+                                 'Sell Price' : 'max',
+                                 'P/L per token': 'mean', 
+                                 'P/L %':lambda x: np.round(x.sum()/4,2), 
+                                 'DCA': 'max'})
+        grouped_df.index = range(1, len(grouped_df)+1)
+        grouped_df.rename(columns={'DCA' : '# of DCAs', 'Buy Price':'Avg. Buy Price',
+                                   'P/L per token':'Avg. P/L per token'}, inplace=True)
+        
     st.subheader("Trade Logs")
-    st.dataframe(grouped_df.style.format({'Avg. Buy Price': '${:.2f}', 'Sell Price': '${:.2f}','# of DCAs':'{:.0f}', 'Avg. P/L per token':'${:.2f}', 'P/L % (25% DCA)':'{:.2f}%'})\
+    st.dataframe(grouped_df.style.format({'Avg. Buy Price': '${:.2f}', 'Sell Price': '${:.2f}','# of DCAs':'{:.0f}', 'Avg. P/L per token':'${:.2f}', 'P/L %' :'{:.2f}%'})\
     .applymap(my_style,subset=['Avg. P/L per token'])\
-    .applymap(my_style,subset=['P/L % (25% DCA)']), use_container_width=True)
+    .applymap(my_style,subset=['P/L %']), use_container_width=True)
     
 if __name__ == "__main__":
     st.set_page_config(

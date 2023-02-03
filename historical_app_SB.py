@@ -114,7 +114,7 @@ def load_data(filename, otimeheader,fmat):
 def runapp() -> None:
     bot_selections = "Short Bread"
     otimeheader = 'Entry Date'
-    plheader = 'P/L %'
+    plheader = 'Calculated Return %'
     fmat = '%Y-%m-%d %H:%M:%S'
     dollar_cap = 30000.00
     fees = .075/100
@@ -142,7 +142,7 @@ def runapp() -> None:
     dateheader = 'Date'
     theader = 'Time'
 
-    with st.form("user input", ):
+    with st.form("user input"):
         if no_errors:
             with st.container():
                 col1, col2 = st.columns(2)
@@ -154,7 +154,7 @@ def runapp() -> None:
                         no_errors = False 
                 with col2:
                     try:
-                        enddate = st.date_input("End Date", value=pd.to_datetime(df[otimeheader]).max())
+                        enddate = st.date_input("End Date", value=datetime.today())
                     except:
                         st.error("Please select your exchange or upload a supported trade log file.")
                         no_errors = False 
@@ -214,7 +214,7 @@ def runapp() -> None:
             df['Per Trade Return Rate'] = df['Return Per Trade']-1
 
             totals = pd.DataFrame([], columns = ['# of Trades', 'Wins', 'Losses', 'Win Rate', 'Profit Factor'])
-            data = get_hist_info(df.dropna(), principal_balance,'Per Trade Return Rate')
+            data = get_hist_info(df.dropna(), principal_balance,'Calculated Return %')
             totals.loc[len(totals)] = list(i for i in data)
 
             totals['Cum. P/L'] = cum_pl-principal_balance
@@ -285,8 +285,25 @@ def runapp() -> None:
                             "",#f"{(1+get_rolling_stats(df,otimeheader, 30))*principal_balance:.2f}",
                             f"{get_rolling_stats(df,lev, otimeheader, 180):.2f}%",
                         )
+    if submitted: 
+        grouped_df = df.groupby('Exit Date').agg({'Signal':'min','Entry Date': 'min','Exit Date': 'max','Buy Price': 'mean',
+                                 'Sell Price' : 'max',
+                                 'P/L per token': 'mean', 
+                                 'Calculated Return %' : lambda x: np.round(100*lev*x.sum(),3)})
+        grouped_df.index = range(1, len(grouped_df)+1)
+        grouped_df.rename(columns={'Buy Price':'Avg. Buy Price',
+                                   'P/L per token':'Avg. P/L per token', 
+                                   'Calculated Return %':'P/L %'}, inplace=True)        
+    else: 
+        grouped_df = df.groupby('Exit Date').agg({'Signal':'min','Entry Date': 'min','Exit Date': 'max','Buy Price': 'mean',
+                                 'Sell Price' : 'max',
+                                 'P/L per token': 'mean', 
+                                 'P/L %':lambda x: np.round(x.sum()/4,2)})
+        grouped_df.index = range(1, len(grouped_df)+1)
+        grouped_df.rename(columns={'Buy Price':'Avg. Buy Price',
+                                   'P/L per token':'Avg. P/L per token'}, inplace=True)
     st.subheader("Trade Logs")
-    st.dataframe(grouped_df.style.format({'Avg. Buy Price': '${:.2f}', 'Sell Price': '${:.2f}', 'Avg. P/L per token':'${:.2f}', 'P/L %':'{:.2f}%'})\
+    st.dataframe(grouped_df.style.format({'Avg. Buy Price': '${:.2f}', 'Sell Price': '${:.2f}', 'Avg. P/L per token':'${:.3f}', 'P/L %':'{:.2f}%'})\
     .applymap(my_style,subset=['Avg. P/L per token'])\
     .applymap(my_style,subset=['P/L %']), use_container_width=True)
     
