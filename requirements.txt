@@ -5,5 +5,4 @@ matplotlib
 pathlib
 plotly
 altair
-streamlit==1.6
-click==8
+streamlit
