@@ -38,10 +38,13 @@ def get_hist_info(df_coin, principal_balance,plheader):
     
     grosswin = sum(df_coin[df_coin[plheader] > 0][plheader])
     grossloss = sum(df_coin[df_coin[plheader] < 0][plheader])
-    pfactor = -1*np.round(grosswin/grossloss,2)
+    if grossloss !=0:
+        pfactor = -1*np.round(grosswin/grossloss,2)
+    else: 
+        pfactor = np.nan
     return numtrades, numwin, numloss, winrate, pfactor
 @st.experimental_memo
-def get_rolling_stats(df,otimeheader, days):
+def get_rolling_stats(df, lev, otimeheader, days):
     rollend = datetime.today()-timedelta(days=days)
     rolling_df = df[df[otimeheader] >= rollend]
 
@@ -49,7 +52,7 @@ def get_rolling_stats(df,otimeheader, days):
         rolling_perc = rolling_df['Return Per Trade'].dropna().cumprod().values[-1]-1
     else: 
         rolling_perc = 0
-    return rolling_perc
+    return 100*lev*rolling_perc
 
 @st.experimental_memo
 def filt_df(
@@ -120,6 +123,8 @@ def runapp() -> None:
     otimeheader = 'Entry Date'
     plheader = 'Calculated P/L'
     fmat = '%Y-%m-%d %H:%M:%S'
+    dollar_cap = 30000.00
+    fees = .075/100
     st.header(f"{bot_selections} Performance Dashboard :bread: :moneybag:")
     st.write("Welcome to the Trading Bot Dashboard by BreadBytes! You can use this dashboard to track " +
                  "the performance of our trading bots.")
@@ -141,7 +146,7 @@ def runapp() -> None:
     grouped_df.index = range(1, len(grouped_df)+1)
     grouped_df.rename(columns={'DCA' : '# of DCAs', 'Buy Price':'Avg. Buy Price',
                                'P/L per token':'Avg. P/L per token', 
-                               'P/L %':'Avg. P/L % (25% DCA)'}, inplace=True)
+                               'P/L %':'P/L % (25% DCA)'}, inplace=True)
     
     dateheader = 'Date'
     theader = 'Time'
@@ -172,9 +177,7 @@ def runapp() -> None:
                 with col2:
                     lev = st.number_input('Leverage', min_value=1, value=1, max_value= 5, step=1)
                 with col1:
-                    principal_balance = st.number_input('Starting Balance', min_value=0.00, value=1000.00, max_value= 30000.00/lev, step=.01)
-                    #if principal_balance*lev > 30000.00: 
-                        
+                    principal_balance = st.number_input('Starting Balance', min_value=0.00, value=1000.00, max_value= dollar_cap, step=.01)
         with st.container():
             col1, col2, col3, col4 = st.columns(4)
             with col1: 
@@ -190,7 +193,10 @@ def runapp() -> None:
         c = st.columns(9)
         with c[4]: 
             submitted = st.form_submit_button("Get Cookin'!")           
-                
+    
+    if submitted and principal_balance * lev > dollar_cap:
+        lev = np.floor(dollar_cap/principal_balance)
+        st.error(f"WARNING: (Starting Balance)*(Leverage) exceeds the ${dollar_cap} limit. Using maximum available leverage of {lev}")
                 
     if submitted and no_errors:
         df = df[(df[dateheader] >= startdate) & (df[dateheader] <= enddate)]
@@ -206,7 +212,7 @@ def runapp() -> None:
 
             signal_map = {'Long': 1, 'Short':-1} # 1 for long #-1 for short
 
-            df['Calculated Return %'] = (df['Signal'].map(signal_map)*((df['Sell Price']-df['Buy Price'])/df['Buy Price'])*(df['DCA %']))
+            df['Calculated Return %'] = df['Signal'].map(signal_map)*(df['DCA %'])*(1-fees)*((df['Sell Price']-df['Buy Price'])/df['Buy Price'] - fees) #accounts for fees on open and close of trade 
 
             df['Return Per Trade'] = np.nan
 
@@ -215,19 +221,21 @@ def runapp() -> None:
             df.loc[df['DCA']==1.0,'Return Per Trade'] = 1+g['Return Per Trade'].values
 
             df['Compounded Return'] = df['Return Per Trade'].cumprod()
-            cum_pl = df.loc[df.dropna().index[-1],'Compounded Return']*principal_balance
+            df['Balance used in Trade'] = [min(dollar_cap/lev, bal*principal_balance) for bal in df['Compounded Return']]
+            df['Net P/L Per Trade'] = (df['Return Per Trade']-1)*lev*df['Balance used in Trade'] 
+            df['Cumulative P/L'] = df['Net P/L Per Trade'].cumsum()
+            cum_pl = df.loc[df.dropna().index[-1],'Cumulative P/L'] + principal_balance
 
-            effective_return = df.loc[df.index[-1],'Compounded Return'] - 1
+            effective_return = 100*((cum_pl - principal_balance)/principal_balance)
 
             st.header(f"{bot_selections} Results")
             if len(bot_selections) > 1:
                 st.metric(
                     "Total Account Balance",
                     f"${cum_pl:.2f}",
-                    f"{100*(cum_pl-principal_balance)/principal_balance:.2f} %",
+                    f"{100*(cum_pl-principal_balance)/(principal_balance):.2f} %",
                 )
 
-            df['Cumulative P/L'] = (df['Compounded Return']-1)*principal_balance
             st.line_chart(data=df.dropna(), x='Exit Date', y='Cumulative P/L', use_container_width=True)
 
             df['Per Trade Return Rate'] = df['Return Per Trade']-1
@@ -280,12 +288,12 @@ def runapp() -> None:
                         st.metric(
                         "Rolling 7 Days",
                             "",#f"{(1+get_rolling_stats(df,otimeheader, 30))*principal_balance:.2f}",
-                            f"{100*get_rolling_stats(df,otimeheader, 7):.2f}%",
+                            f"{get_rolling_stats(df,lev, otimeheader, 7):.2f}%",
                         )
                         st.metric(
                         "Rolling 30 Days",
                             "",#f"{(1+get_rolling_stats(df,otimeheader, 30))*principal_balance:.2f}",
-                            f"{100*get_rolling_stats(df,otimeheader, 30):.2f}%",
+                            f"{get_rolling_stats(df,lev, otimeheader, 30):.2f}%",
                         )
 
                     with col4: 
@@ -297,17 +305,17 @@ def runapp() -> None:
                         st.metric(
                         "Rolling 90 Days",
                             "",#f"{(1+get_rolling_stats(df,otimeheader, 30))*principal_balance:.2f}",
-                            f"{100*get_rolling_stats(df,otimeheader, 90):.2f}%",
+                            f"{get_rolling_stats(df,lev, otimeheader, 90):.2f}%",
                         )
                         st.metric(
                         "Rolling 180 Days",
                             "",#f"{(1+get_rolling_stats(df,otimeheader, 30))*principal_balance:.2f}",
-                            f"{100*get_rolling_stats(df,otimeheader, 180):.2f}%",
+                            f"{get_rolling_stats(df,lev, otimeheader, 180):.2f}%",
                         )
     st.subheader("Trade Logs")
-    st.dataframe(grouped_df.style.format({'Avg. Buy Price': '${:.2f}', 'Sell Price': '${:.2f}','# of DCAs':'{:.0f}', 'Avg. P/L per token':'${:.2f}', 'Avg. P/L % (25% DCA)':'{:.2f}%'})\
+    st.dataframe(grouped_df.style.format({'Avg. Buy Price': '${:.2f}', 'Sell Price': '${:.2f}','# of DCAs':'{:.0f}', 'Avg. P/L per token':'${:.2f}', 'P/L % (25% DCA)':'{:.2f}%'})\
     .applymap(my_style,subset=['Avg. P/L per token'])\
-    .applymap(my_style,subset=['Avg. P/L % (25% DCA)']), use_container_width=True)
+    .applymap(my_style,subset=['P/L % (25% DCA)']), use_container_width=True)
     
 if __name__ == "__main__":
     st.set_page_config(
