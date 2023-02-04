@@ -55,8 +55,7 @@ def get_rolling_stats(df, lev, otimeheader, days):
     return 100*lev*rolling_perc
 
 @st.experimental_memo
-def filt_df(
-    df: pd.DataFrame, cheader : str, symbol_selections: list[str]) -> pd.DataFrame:
+def filt_df(df, cheader, symbol_selections):
     """
         Inputs: df (pd.DataFrame), cheader (str) and symbol_selections (list[str]).
         
@@ -111,7 +110,7 @@ def load_data(filename, otimeheader,fmat):
     
     return df
 
-def runapp() -> None:
+def runapp():
     bot_selections = "French Toast"
     otimeheader = 'Entry Date'
     plheader = 'P/L %'
