@@ -5,4 +5,4 @@ matplotlib
 pathlib
 plotly
 altair
-streamlit
+streamlit==1.6
