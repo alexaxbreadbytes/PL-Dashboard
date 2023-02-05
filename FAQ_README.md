@@ -8,7 +8,7 @@ OkX
 
 ### Q: What logs do I need to pull from my exchange?
 Our dashboard works with a specific trade log from each exchange, so you need to make sure you are exporting the correct log file so your data is displayed properly. Here is the trade log you need to export from each exchange:<br>
-<p> **ByBit: Closed P&L** - To get to this log you need to be logged into your ByBit account and navigate to Orders then under Derivatives select Closed P&L then in the top right you will see an export button, click that and set the date range, then press export.</p>
+<p> <b>ByBit: Closed P&L</b> - To get to this log you need to be logged into your ByBit account and navigate to Orders then under Derivatives select Closed P&L then in the top right you will see an export button, click that and set the date range, then press export.</p>
 <p> **BitGet: Order History** - Log into your BitGet account, then navigate to orders then on the left side bar select Orders-Futures, then select the Order History tab. Click the export data button on the right side, then select date range you want and press export.</p>
 <p> **Binance: Trade History** Log into Binance and select Orders, then under Futures select Trade History. Click the export button and select the date range you want to export.</p>
 <p> **Kraken: Trades** - Log into Kraken and click on the History tab then click on the export tab and make sure you select the "Trades" option in the dashboard. Then select your start and end dates and press submit.</p>
