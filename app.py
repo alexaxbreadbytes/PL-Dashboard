@@ -171,6 +171,7 @@ def runapp() -> None:
         user = st.text_input("Username")
         secret = st.text_input("Password")
         
+        submitted = st.form_submit_button("Submit")
         if submitted:
             if user == st.secrets["db_username"] and secret == st.secrets["db_password"]:
                 st.success("Success!")
