@@ -166,6 +166,7 @@ def runapp() -> None:
     st.write("Welcome to the Trading Bot Dashboard by BreadBytes! You can use this dashboard to track " +
                  "the performance of our trading bots, or upload and track your own performance data from a supported exchange.")
     
+    
     if 'auth_user' not in st.session_state:
         with st.form("Login"):
             user = st.text_input("Username")
@@ -180,9 +181,8 @@ def runapp() -> None:
                 st.success("Incorrect username and/or password. Please try again.")
                 st.session_state['auth_user'] = False
 
-    
-    if st.session_state['auth_user'] == True:
-        try:
+    try: 
+        if st.session_state['auth_user'] == True:
             st.sidebar.header("FAQ")
 
             with st.sidebar.subheader("FAQ"):
@@ -399,8 +399,8 @@ def runapp() -> None:
                     #.highlight_min(subset=['Cum. P/L (%)', 'Avg. P/L (%)'], color='lightred')\
                     #.highlight_max(subset=['Cum. P/L (%)', 'Avg. P/L (%)'], color='green'), use_container_width=True)
                     #.background_gradient(subset=['Cum. P/L (%)', 'Avg. P/L (%)'],cmap="RdYlGn", vmin = -1, vmax = 1), use_container_width=True)
-        except:
-            st.error("Please log in.")
+    except:
+        st.error("Please log in.")
 if __name__ == "__main__":
     st.set_page_config(
         "Trading Bot Dashboard",
