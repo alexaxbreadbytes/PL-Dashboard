@@ -101,7 +101,7 @@ def get_headers(logtype):
         plheader = '\ufeffPL'
         fmat = '%Y-%m-%d %H:%M:%S'        
     
-    return otimeheader, cheader, plheader, fmat
+    return otimeheader.lower(), cheader.lower(), plheader.lower(), fmat.lower()
     
 @st.experimental_memo    
 def get_coin_info(df_coin, principal_balance,plheader):
@@ -194,6 +194,8 @@ def runapp() -> None:
             df = pd.read_excel(uploaded_data)
             
         otimeheader, cheader, plheader, fmat = get_headers(logtype)
+        
+        df.columns = [c.lower() for c in df.columns]
 
         if not(uploaded_data is None):
             with st.container():
