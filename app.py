@@ -68,7 +68,7 @@ def get_headers(logtype):
         otimeheader = 'Date'
         cheader = 'Futures'
         plheader = 'Realized P/L'
-        fmat = '%Y-%m-%d %H:%M:%S'
+        fmat = '%Y-%m-%d %H:%M:%S.%f'
         
     if logtype == "MEXC":
         otimeheader = 'Trade time'
@@ -101,7 +101,7 @@ def get_headers(logtype):
         plheader = '\ufeffPL'
         fmat = '%Y-%m-%d %H:%M:%S'        
     
-    return otimeheader.lower(), cheader.lower(), plheader.lower(), fmat.lower()
+    return otimeheader.lower(), cheader.lower(), plheader.lower(), fmat
     
 @st.experimental_memo    
 def get_coin_info(df_coin, principal_balance,plheader):
@@ -264,7 +264,10 @@ def runapp() -> None:
         if no_errors:        
             ## reformating / necessary calculations 
             if logtype == 'BitGet':
-                badcol = df.filter(regex='Unnamed').columns.values[0]
+                try: 
+                    badcol = df.filter(regex='Unnamed').columns.values[0] 
+                except: 
+                    badcol = []
                 df = df[[col for col in df.columns if col != badcol]]
                 df = df[df[plheader] != 0]
             if logtype == 'MEXC':
