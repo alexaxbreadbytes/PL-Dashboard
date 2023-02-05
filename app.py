@@ -181,7 +181,7 @@ def runapp() -> None:
                 st.session_state['auth_user'] = False
 
     
-    if st.session_state['auth_user'] == True:
+    if submitted and st.session_state['auth_user'] == True:
         st.sidebar.header("FAQ")
 
         with st.sidebar.subheader("FAQ"):
