@@ -1,6 +1,6 @@
 ### Q: Do these results include trading fees?
 
-If you are using the historical data from our bots, trading fees at .07% are included in the results.
+If you are using the historical data from our bots, trading fees at .075% are included in the results.
 If you are uploading your own data, fee inclusion will depend on your exchange. We assume all uploaded trade logs include fees in the reported P/L data and do not account for any extra in our calculations. 
 
 ### Q: I have Cinnamon Toast and Short Bread, can I see the results for each bot using this dashboard? 
