@@ -186,7 +186,7 @@ def runapp() -> None:
             st.sidebar.header("FAQ")
 
             with st.sidebar.subheader("FAQ"):
-                st.markdown(Path("FAQ_README.md").read_text(), , unsafe_allow_html=True)
+                st.markdown(Path("FAQ_README.md").read_text(), unsafe_allow_html=True)
 
             no_errors = True
 
