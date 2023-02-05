@@ -179,7 +179,7 @@ def runapp() -> None:
                 st.success("Incorrect username and/or password. Please try again.")
                 verified_user = False
                 
-    if verified_user == True
+    if verified_user == True:
         st.sidebar.header("FAQ")
 
         with st.sidebar.subheader("FAQ"):
