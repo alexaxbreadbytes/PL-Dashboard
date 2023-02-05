@@ -178,10 +178,10 @@ def runapp() -> None:
                     st.session_state['auth_user'] = True
             else:
                 st.success("Incorrect username and/or password. Please try again.")
-                st.session_state['auth_user'] = True
+                st.session_state['auth_user'] = False
 
     
-    if verified_user == True:
+    if st.session_state['auth_user'] == True:
         st.sidebar.header("FAQ")
 
         with st.sidebar.subheader("FAQ"):
