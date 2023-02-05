@@ -161,28 +161,25 @@ def filt_df(
 
     return df
 
-@st.cache
-def auth_user():
-    with st.form("Login"):
-        user = st.text_input("Username")
-        secret = st.text_input("Password")
-        
-        submitted = st.form_submit_button("Submit")
-    if submitted:
-        if user == st.secrets["db_username"] and secret == st.secrets["db_password"]:
-                st.success("Success!")
-                verified_user = True
-        else:
-            st.success("Incorrect username and/or password. Please try again.")
-            verified_user = False
-    return verified_user
-
 def runapp() -> None:
     st.header("Trading Bot Dashboard :bread: :moneybag:")
     st.write("Welcome to the Trading Bot Dashboard by BreadBytes! You can use this dashboard to track " +
                  "the performance of our trading bots, or upload and track your own performance data from a supported exchange.")
     
-    verified_user = auth_user()
+    if 'auth_user' not in st.session_state:
+        with st.form("Login"):
+            user = st.text_input("Username")
+            secret = st.text_input("Password")
+
+            submitted = st.form_submit_button("Submit")
+        if submitted:
+            if user == st.secrets["db_username"] and secret == st.secrets["db_password"]:
+                    st.success("Success!")
+                    st.session_state['auth_user'] = True
+            else:
+                st.success("Incorrect username and/or password. Please try again.")
+                st.session_state['auth_user'] = True
+
     
     if verified_user == True:
         st.sidebar.header("FAQ")
