@@ -1,9 +1,9 @@
 ### Q: What exchanges are supported?
-ByBit
-BitGet
-Binance
-Kraken
-MEXC
+ByBit<br>
+BitGet<br>
+Binance<br>
+Kraken<br>
+MEXC<br>
 OkX
 
 ### Q: What logs do I need to pull from my exchange?
