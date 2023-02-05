@@ -1,3 +1,20 @@
+### Q: What exchanges are supported?
+ByBit
+BitGet
+Binance
+Kraken
+MEXC
+OkX
+
+### Q: What logs do I need to pull from my exchange?
+Our dashboard works with a specific trade log from each exchange, so you need to make sure you are exporting the correct log file so your data is displayed properly. Here is the trade log you need to export from each exchange:
+**ByBit: Closed P&L** - To get to this log you need to be logged into your ByBit account and navigate to Orders then under Derivatives select Closed P&L then in the top right you will see an export button, click that and set the date range, then press export.
+**BitGet: Order History** - Log into your BitGet account, then navigate to orders then on the left side bar select Orders-Futures, then select the Order History tab. Click the export data button on the right side, then select date range you want and press export.
+**Binance: Trade History** Log into Binance and select Orders, then under Futures select Trade History. Click the export button and select the date range you want to export.
+**Kraken: Trades** - Log into Kraken and click on the History tab then click on the export tab and make sure you select the "Trades" option in the dashboard. Then select your start and end dates and press submit.
+**MEXC: Order History** - Log into MEXC then select orders on the right side and select futures. Then select the Order History tab then press the export button and enter the date range you would like to export.
+**OkX: Order History** - Log into OkX then find Order Center in your account menu. Then click on the Order History tab, select the date range you want and press the download button.
+
 ### Q: Do these results include trading fees?
 
 If you are using the historical data from our bots, trading fees at .075% are included in the results.
