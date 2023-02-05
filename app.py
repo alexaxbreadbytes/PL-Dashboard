@@ -175,13 +175,14 @@ def auth_user():
         else:
             st.success("Incorrect username and/or password. Please try again.")
             verified_user = False
+    return verified_user
 
 def runapp() -> None:
     st.header("Trading Bot Dashboard :bread: :moneybag:")
     st.write("Welcome to the Trading Bot Dashboard by BreadBytes! You can use this dashboard to track " +
                  "the performance of our trading bots, or upload and track your own performance data from a supported exchange.")
     
-    auth_user()
+    verified_user = auth_user()
     
     if verified_user == True:
         st.sidebar.header("FAQ")
