@@ -8,12 +8,12 @@ OkX
 
 ### Q: What logs do I need to pull from my exchange?
 Our dashboard works with a specific trade log from each exchange, so you need to make sure you are exporting the correct log file so your data is displayed properly. Here is the trade log you need to export from each exchange:<br>
-<p> **ByBit: Closed P&L** - To get to this log you need to be logged into your ByBit account and navigate to Orders then under Derivatives select Closed P&L then in the top right you will see an export button, click that and set the date range, then press export.</p>
-<p> **BitGet: Order History** - Log into your BitGet account, then navigate to orders then on the left side bar select Orders-Futures, then select the Order History tab. Click the export data button on the right side, then select date range you want and press export.</p>
-<p> **Binance: Trade History** Log into Binance and select Orders, then under Futures select Trade History. Click the export button and select the date range you want to export.</p>
-<p> **Kraken: Trades** - Log into Kraken and click on the History tab then click on the export tab and make sure you select the "Trades" option in the dashboard. Then select your start and end dates and press submit.</p>
-<p> **MEXC: Order History** - Log into MEXC then select orders on the right side and select futures. Then select the Order History tab then press the export button and enter the date range you would like to export.</p>
-<p> **OkX: Order History** - Log into OkX then find Order Center in your account menu. Then click on the Order History tab, select the date range you want and press the download button.</p>
+<p> <b>ByBit: Closed P&L</b> - To get to this log you need to be logged into your ByBit account and navigate to Orders then under Derivatives select Closed P&L then in the top right you will see an export button, click that and set the date range, then press export.</p>
+<p> <b>BitGet: Order History</b> - Log into your BitGet account, then navigate to orders then on the left side bar select Orders-Futures, then select the Order History tab. Click the export data button on the right side, then select date range you want and press export.</p>
+<p> <b>Binance: Trade History</b> Log into Binance and select Orders, then under Futures select Trade History. Click the export button and select the date range you want to export.</p>
+<p> <b>Kraken: Trades</b> - Log into Kraken and click on the History tab then click on the export tab and make sure you select the "Trades" option in the dashboard. Then select your start and end dates and press submit.</p>
+<p> <b>MEXC: Order History</b>- Log into MEXC then select orders on the right side and select futures. Then select the Order History tab then press the export button and enter the date range you would like to export.</p>
+<p> <b>OkX: Order History</b> - Log into OkX then find Order Center in your account menu. Then click on the Order History tab, select the date range you want and press the download button.</p>
 
 ### Q: Do these results include trading fees?
 
@@ -26,9 +26,6 @@ You may choose "Other" under the trading bot choice and select "ETH" as your cur
 
 ### Q: Where is Kucoin? 
 Currently, this dashboard does not support trading logs from Kucoin. At this time, we cannot verify profit/loss from trade logs provided by Kucoin as some necessary data is missing. We will update this dashboard if/when that data is made available in their exported trading logs. 
-
-### Q: What about leverage?
-The dashboard is currently set to 1x leverage. We are working on providing an accurate way to reflect users varied leverage choices across trades. 
 
 ### Q: The dashboard isn't working correctly for me. 
 Please check that you have selected the correct inputs for your file and that you have uploaded a supported file type. If you believe there is an error we need to fix, please reach out to: 
