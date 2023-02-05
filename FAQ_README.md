@@ -27,9 +27,6 @@ You may choose "Other" under the trading bot choice and select "ETH" as your cur
 ### Q: Where is Kucoin? 
 Currently, this dashboard does not support trading logs from Kucoin. At this time, we cannot verify profit/loss from trade logs provided by Kucoin as some necessary data is missing. We will update this dashboard if/when that data is made available in their exported trading logs. 
 
-### Q: What about leverage?
-The dashboard is currently set to 1x leverage. We are working on providing an accurate way to reflect users varied leverage choices across trades. 
-
 ### Q: The dashboard isn't working correctly for me. 
 Please check that you have selected the correct inputs for your file and that you have uploaded a supported file type. If you believe there is an error we need to fix, please reach out to: 
 
