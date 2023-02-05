@@ -119,7 +119,7 @@ def load_data(filename, otimeheader, fmat):
 
 def runapp():
     bot_selections = "Cinnamon Toast"
-    otimeheader = 'Entry Date'
+    otimeheader = 'Exit Date'
     fmat = '%Y-%m-%d %H:%M:%S'
     dollar_cap = 30000.00
     fees = .075/100
