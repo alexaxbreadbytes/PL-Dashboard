@@ -365,47 +365,16 @@ def runapp() -> None:
                             f"{row._8:.2f} %",
                         )
                 st.subheader(f"Historical Performance")
-
-                ########### multi chart --- gross!!!! 
-        #         plotdf = pd.DataFrame([], columns=[dateheader, cheader, 'Cumulative P/L'])
-        #         for coin in pd.unique(symbol_selections):
-        #             coin_df = df.loc[df[cheader]==coin, [dateheader, cheader,plheader]]
-        #             coin_df['Cumulative P/L'] = coin_df[plheader].cumsum() #+ principal_balance
-        #             coin_df[dateheader] = [str(i) for i in coin_df[dateheader]]
-        #             plotdf = pd.concat([plotdf, coin_df.loc[:,[dateheader, cheader, 'Cumulative P/L']]])
-
-        #         chart = alt.Chart(plotdf).mark_line().encode(
-        #           x=alt.X(f'{dateheader}:N'),
-        #           y=alt.Y('Cumulative P/L:Q'),
-        #           color=alt.Color(f'{cheader}:N')
-        #         )##.properties(title="Testing")
-        #         st.altair_chart(chart, use_container_width=True)
-                ########################
                 cmap=LinearSegmentedColormap.from_list('rg',["r", "grey", "g"], N=100) 
-                #new_row = pd.DataFrame(dict(zip(df.columns, [None]*len(df.columns))), index = [0])
-                #new_row[plheader] = principal_balance
-                #new_row[dateheader] = df.loc[0,dateheader]
-                #plotdf = pd.concat([new_row, df])
-                #plotdf = df.melt(dateheader, var_name=cheader, value_name=plheader)
                 df['Cumulative P/L'] = df[plheader].cumsum()
                 st.line_chart(data=df, x=otimeheader, y='Cumulative P/L', use_container_width=True)
-                #fig, ax = plt.subplots()
-                #ax.plot(plotdf[dateheader],plotdf['Cumulative P/L'])
-                #plt.xlims=([principal_balance, principal_balance+plotdf[plheader].max() + 10])
-                #plt.show()
-                #st.pyplot(fig)
                 st.subheader("Summarized Results")
                 if df.empty:
                     st.error("Oops! None of the data provided matches your selection(s). Please try again.")
                 else:
-                    #st.dataframe(results_df.style.background_gradient(subset=['Win Rate', 'Profit Factor', 'Cum. P/L (%)', 'Avg. P/L (%)'], cmap="RdYlGn"), width = 100)
-                    #st.dataframe(results_df.style.background_gradient(subset=['Profit Factor'], cmap="RdYlGn", vmin = -1, vmax=1), use_container_width=True)
                     st.dataframe(results_df.style.format({'Win Rate': '{:.2f}%','Profit Factor' : '{:.2f}', 'Avg. P/L (%)': '{:.2f}%', 'Cum. P/L (%)': '{:.2f}%', 'Cum. P/L': '{:.2f}', 'Avg. P/L': '{:.2f}'})\
                 .text_gradient(subset=['Win Rate'],cmap=cmap, vmin = 0, vmax = 100)\
                 .text_gradient(subset=['Profit Factor'],cmap=cmap, vmin = 0, vmax = 2), use_container_width=True)
-                #.highlight_min(subset=['Cum. P/L (%)', 'Avg. P/L (%)'], color='lightred')\
-                #.highlight_max(subset=['Cum. P/L (%)', 'Avg. P/L (%)'], color='green'), use_container_width=True)
-                #.background_gradient(subset=['Cum. P/L (%)', 'Avg. P/L (%)'],cmap="RdYlGn", vmin = -1, vmax = 1), use_container_width=True)
 
 if __name__ == "__main__":
     st.set_page_config(
