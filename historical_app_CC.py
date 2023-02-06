@@ -73,6 +73,11 @@ def my_style(v, props=''):
     props = 'color:red' if v < 0 else 'color:green'
     return props
 
+@st.experimental_memo
+def cc_coding(row):
+    return ['background-color: orange'] * len(row) if row['Exit Date'] <= datetime.strptime('2022-12-16 00:00:00','%Y-%m-%d %H:%M:%S').date() else [''] * len(row)
+
+
 @st.cache(ttl=24*3600, allow_output_mutation=True)
 def load_data(filename, otimeheader,fmat):
     df = pd.read_csv(open(filename,'r'), sep='\t') # so as not to mutate cached value 
