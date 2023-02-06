@@ -148,6 +148,8 @@ def get_rolling_stats(df, lev, otimeheader, days):
         rolling_perc = 0
     return 100*lev*rolling_perc
 @st.experimental_memo
+def cc_coding(row):
+    return ['background-color: orange'] * len(row) if row['Exit Date'] <= datetime.strptime('2022-12-16 00:00:00','%Y-%m-%d %H:%M:%S').date() else [''] * len(row)
 
 @st.experimental_memo
 def my_style(v, props=''):
@@ -168,12 +170,11 @@ def filt_df(
 
     return df
 
-@st.cache(ttl=24*3600)
+
 def load_data(filename, otimeheader, fmat):
     df = pd.read_csv(open(filename,'r'), sep='\t') # so as not to mutate cached value 
     
-    
-    if filename == "CT-Trade-Log.csv":
+    if filename == "CT-Trade-Log.csv" or filename == "CC-Trade-Log.csv":
         df.columns = ['Trade','Entry Date','Buy Price', 'Sell Price','Exit Date', 'P/L per token', 'P/L %', 'Drawdown %']
         df.insert(1, 'Signal', ['Long']*len(df)) 
     else: 
@@ -613,7 +614,8 @@ def runapp() -> None:
                                     "",#f"{(1+get_rolling_stats(df,otimeheader, 30))*principal_balance:.2f}",
                                     f"{get_rolling_stats(df,lev, otimeheader, 180):.2f}%",
                                 )
-            if logtype == "Cinnamon Toast":
+            
+            if bot_selections == "Cinnamon Toast":
                 if submitted:                     
                     grouped_df = df.groupby('Exit Date').agg({'Signal':'min','Entry Date': 'min','Exit Date': 'max','Buy Price': 'mean',
                                              'Sell Price' : 'max',
@@ -633,11 +635,6 @@ def runapp() -> None:
                     grouped_df.index = range(1, len(grouped_df)+1)
                     grouped_df.rename(columns={'DCA' : '# of DCAs', 'Buy Price':'Avg. Buy Price',
                                                'P/L per token':'Avg. P/L per token'}, inplace=True)
-
-                st.subheader("Trade Logs")
-                st.dataframe(grouped_df.style.format({'Avg. Buy Price': '${:.2f}', 'Sell Price': '${:.2f}','# of DCAs':'{:.0f}', 'Avg. P/L per token':'${:.2f}', 'P/L %' :'{:.2f}%'})\
-                .applymap(my_style,subset=['Avg. P/L per token'])\
-                .applymap(my_style,subset=['P/L %']), use_container_width=True)
                 
             else: 
                 if submitted: 
@@ -658,11 +655,18 @@ def runapp() -> None:
                     grouped_df.rename(columns={'Buy Price':'Avg. Buy Price',
                                                'P/L per token':'Avg. P/L per token'}, inplace=True)
                 st.subheader("Trade Logs")
-                st.dataframe(grouped_df.style.format({'Avg. Buy Price': '${:.2f}', 'Sell Price': '${:.2f}', 'Avg. P/L per token':'${:.2f}', 'P/L %':'{:.2f}%'})\
-                .applymap(my_style,subset=['Avg. P/L per token'])\
-                .applymap(my_style,subset=['P/L %']), use_container_width=True)
-            
-                
+                if bot_selections == "Cosmic Cupcake":
+                    st.dataframe(grouped_df.style.format({'Avg. Buy Price': '${:.2f}', 'Sell Price': '${:.2f}', 'Avg. P/L per token':'${:.2f}', 'P/L %':'{:.2f}%'})\
+                    .apply(cc_coding, axis=1)\
+                    .applymap(my_style,subset=['Avg. P/L per token'])\
+                    .applymap(my_style,subset=['P/L %']), use_container_width=True)
+                    new_title = '<div style="text-align: right;"><span style="background-color:orange;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span> Not Live Traded</div>'
+                    st.markdown(new_title, unsafe_allow_html=True)
+                else: 
+                    st.dataframe(grouped_df.style.format({'Avg. Buy Price': '${:.2f}', 'Sell Price': '${:.2f}', 'Avg. P/L per token':'${:.2f}', 'P/L %':'{:.2f}%'})\
+                    .applymap(my_style,subset=['Avg. P/L per token'])\
+                    .applymap(my_style,subset=['P/L %']), use_container_width=True)
+                                
 if __name__ == "__main__":
     st.set_page_config(
         "Trading Bot Dashboard",
