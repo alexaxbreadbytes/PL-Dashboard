@@ -92,7 +92,7 @@ def get_headers(logtype):
         
     if logtype == "Kraken":
         otimeheader = 'time'
-        cheader = 'pair'
+        cheader = 'asset'
         plheader = 'amount'
         fmat = '%Y-%m-%d %H:%M:%S.%f'  
         
@@ -300,7 +300,7 @@ def runapp() -> None:
                 if logtype == "Kraken":
                     df = df.replace('\r\n','', regex=True) 
                     df[otimeheader] = [str(time.split(".")[0]) for time in df[otimeheader].values]
-                    df = df[df['type'] == 'margin']
+                    df[plheader] = df[plheader]-df['fee']
                     fmat = '%Y-%m-%d %H:%M:%S'
                     if len(df) == 0:
                         st.error("File Type Error. Please upload a Ledger history file from Kraken.")
