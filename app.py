@@ -136,8 +136,9 @@ def get_hist_info(df_coin, principal_balance,plheader):
     grossloss = sum(df_coin[df_coin[plheader] < 0][plheader])
     pfactor = -1*np.round(grosswin/grossloss,2)
     return numtrades, numwin, numloss, winrate, pfactor
+
 @st.experimental_memo
-def get_rolling_stats(df,otimeheader, days):
+def get_rolling_stats(df, lev, otimeheader, days):
     rollend = datetime.today()-timedelta(days=days)
     rolling_df = df[df[otimeheader] >= rollend]
 
@@ -145,9 +146,14 @@ def get_rolling_stats(df,otimeheader, days):
         rolling_perc = rolling_df['Return Per Trade'].dropna().cumprod().values[-1]-1
     else: 
         rolling_perc = 0
-    return rolling_perc
+    return 100*lev*rolling_perc
+@st.experimental_memo
 
 @st.experimental_memo
+def my_style(v, props=''):
+    props = 'color:red' if v < 0 else 'color:green'
+    return props
+
 def filt_df(
     df: pd.DataFrame, cheader : str, symbol_selections: list[str]) -> pd.DataFrame:
     """
@@ -161,6 +167,58 @@ def filt_df(
     df = df[df[cheader].isin(symbol_selections)]
 
     return df
+
+@st.cache(ttl=24*3600)
+def load_data(filename, otimeheader, fmat):
+    df = pd.read_csv(open(filename,'r'), sep='\t') # so as not to mutate cached value 
+    
+    
+    if filename == "CT-Trade-Log.csv":
+        df.columns = ['Trade','Entry Date','Buy Price', 'Sell Price','Exit Date', 'P/L per token', 'P/L %', 'Drawdown %']
+        df.insert(1, 'Signal', ['Long']*len(df)) 
+    else: 
+        df.columns = ['Trade','Signal','Entry Date','Buy Price', 'Sell Price','Exit Date', 'P/L per token', 'P/L %']
+    
+    df['Buy Price'] = df['Buy Price'].str.replace('$', '', regex=True)
+    df['Sell Price'] = df['Sell Price'].str.replace('$', '', regex=True)
+    df['Buy Price'] = df['Buy Price'].str.replace(',', '', regex=True)
+    df['Sell Price'] = df['Sell Price'].str.replace(',', '', regex=True)
+    df['P/L per token'] = df['P/L per token'].str.replace('$', '', regex=True)
+    df['P/L per token'] = df['P/L per token'].str.replace(',', '', regex=True)
+    df['P/L %'] = df['P/L %'].str.replace('%', '', regex=True)
+
+    df['Buy Price'] = pd.to_numeric(df['Buy Price'])
+    df['Sell Price'] = pd.to_numeric(df['Sell Price'])
+    df['P/L per token'] = pd.to_numeric(df['P/L per token'])
+    df['P/L %'] = pd.to_numeric(df['P/L %'])
+
+    dateheader = 'Date'
+    theader = 'Time'
+
+    df[dateheader] = [tradetimes.split(" ")[0] for tradetimes in df[otimeheader].values]
+    df[theader] = [tradetimes.split(" ")[1] for tradetimes in df[otimeheader].values]
+
+    df[otimeheader]= [dateutil.parser.parse(date+' '+time)
+                              for date,time in zip(df[dateheader],df[theader])]
+
+    df[otimeheader] = pd.to_datetime(df[otimeheader])
+    df['Exit Date'] = pd.to_datetime(df['Exit Date'])
+    df.sort_values(by=otimeheader, inplace=True)
+
+    df[dateheader] = [dateutil.parser.parse(date).date() for date in df[dateheader]]
+    df[theader] = [dateutil.parser.parse(time).time() for time in df[theader]]
+    df['Trade'] = df.index + 1 #reindex
+
+    if filename == "CT-Trade-Log.csv":
+        df['DCA'] = np.nan
+
+        for exit in pd.unique(df['Exit Date']):
+            df_exit = df[df['Exit Date']==exit]
+            for i in range(len(df_exit)):
+                ind = df_exit.index[i]
+                df.loc[ind,'DCA'] = i+1
+    return df
+
 
 def runapp() -> None:
     st.header("Trading Bot Dashboard :bread: :moneybag:")
@@ -195,187 +253,416 @@ def runapp() -> None:
             st.markdown(Path("FAQ_README.md").read_text(), unsafe_allow_html=True)
 
         no_errors = True
-
-        exchanges = ["ByBit", "BitGet", "Binance","Kraken","MEXC","OkX"]
+        
+        
+        exchanges = ["ByBit", "BitGet", "Binance","Kraken","MEXC","OkX", "BreadBytes Historical Logs"]
         logtype = st.selectbox("Select your Exchange", options=exchanges)
-
-        uploaded_data = st.file_uploader(
+        
+        if logtype != "BreadBytes Historical Logs":
+            uploaded_data = st.file_uploader(
             "Drag and Drop files here or click Browse files.", type=[".csv", ".xlsx"], accept_multiple_files=False
-        )
+                )
+            if uploaded_data is None:
+                st.info("Please upload a file, or select BreadBytes Historical Logs as your exchange.")
+            else:
+                st.success("Your file was uploaded successfully!")
 
-        #hack way to get button centered 
-        c = st.columns(7)
+                uploadtype = uploaded_data.name.split(".")[1]
+                if uploadtype == "csv":
+                    df = pd.read_csv(uploaded_data)
+                if uploadtype == "xlsx":
+                    df = pd.read_excel(uploaded_data)
 
-        if uploaded_data is None:
-            st.info("Please upload a file.")
-        else:
-            st.success("Your file was uploaded successfully!")
+                otimeheader, cheader, plheader, fmat = get_headers(logtype)
 
-            uploadtype = uploaded_data.name.split(".")[1]
-            if uploadtype == "csv":
-                df = pd.read_csv(uploaded_data)
-            if uploadtype == "xlsx":
-                df = pd.read_excel(uploaded_data)
+                df.columns = [c.lower() for c in df.columns]
 
-            otimeheader, cheader, plheader, fmat = get_headers(logtype)
+                if not(uploaded_data is None):
+                    with st.container():
+                        bot_selections = "Other"
+                        if bot_selections == "Other":
+                            try:
+                                symbols = list(df[cheader].unique())
+                                symbol_selections = st.multiselect(
+                                "Select/Deselect Asset(s)", options=symbols, default=symbols
+                            )
+                            except:
+                                st.error("Please select your exchange or upload a supported trade log file.")
+                                no_errors = False
+                            if symbol_selections == None:
+                                st.error("Please select at least one asset.")
+                                no_errors = False
 
-            df.columns = [c.lower() for c in df.columns]
+                if no_errors:
+                    if logtype == 'Binance':
+                        otimeheader = df.filter(regex=otimeheader).columns.values[0]
+                        fmat = '%Y-%m-%d %H:%M:%S'
+                        df = df[df[plheader] != 0]
+                    #if logtype == "Kucoin":
+                    #        df = df.replace('\r\n','', regex=True) 
+                    with st.container():
+                        col1, col2 = st.columns(2)
+                        with col1:
+                            try:
+                                startdate = st.date_input("Start Date", value=pd.to_datetime(df[otimeheader]).min())
+                            except:
+                                st.error("Please select your exchange or upload a supported trade log file.")
+                                no_errors = False 
+                        with col2:
+                            try:
+                                enddate = st.date_input("End Date", value=pd.to_datetime(df[otimeheader]).max())
+                            except:
+                                st.error("Please select your exchange or upload a supported trade log file.")
+                                no_errors = False 
+                        #st.sidebar.subheader("Customize your Dashboard")
 
-            if not(uploaded_data is None):
-                with st.container():
-                    bot_selections = "Other"
-                    if bot_selections == "Other":
-                        try:
-                            symbols = list(df[cheader].unique())
-                            symbol_selections = st.multiselect(
-                            "Select/Deselect Asset(s)", options=symbols, default=symbols
-                        )
-                        except:
-                            st.error("Please select your exchange or upload a supported trade log file.")
-                            no_errors = False
-                        if symbol_selections == None:
-                            st.error("Please select at least one asset.")
-                            no_errors = False
-
-            if no_errors:
-                if logtype == 'Binance':
-                    otimeheader = df.filter(regex=otimeheader).columns.values[0]
-                    fmat = '%Y-%m-%d %H:%M:%S'
-                    df = df[df[plheader] != 0]
-                #if logtype == "Kucoin":
-                #        df = df.replace('\r\n','', regex=True) 
-                with st.container():
-                    col1, col2 = st.columns(2)
-                    with col1:
-                        try:
-                            startdate = st.date_input("Start Date", value=pd.to_datetime(df[otimeheader]).min())
-                        except:
-                            st.error("Please select your exchange or upload a supported trade log file.")
+                        if no_errors and (enddate < startdate): 
+                            st.error("End Date must be later than Start date. Please try again.")
                             no_errors = False 
-                    with col2:
-                        try:
-                            enddate = st.date_input("End Date", value=pd.to_datetime(df[otimeheader]).max())
-                        except:
-                            st.error("Please select your exchange or upload a supported trade log file.")
-                            no_errors = False 
-                    #st.sidebar.subheader("Customize your Dashboard")
+                    with st.container(): 
+                        col1,col2 = st.columns(2) 
+                        with col1:
+                            principal_balance = st.number_input('Starting Balance', min_value=0.00, value=1000.00, max_value= 1000000.00, step=10.00)
 
-                    if no_errors and (enddate < startdate): 
-                        st.error("End Date must be later than Start date. Please try again.")
-                        no_errors = False 
-                with st.container(): 
-                    col1,col2 = st.columns(2) 
-                    with col1:
-                        principal_balance = st.number_input('Starting Balance', min_value=0.00, value=1000.00, max_value= 1000000.00, step=10.00)
-
-            with st.expander("Raw Trade Log"):
-                st.write(df)
+                with st.expander("Raw Trade Log"):
+                    st.write(df)
 
 
-            if no_errors:
-                ##cheader = df.columns[df.isin(symbol_selections[0]).any()]    
-                if bot_selections == "Cinnamon Toast" or bot_selections == "Short Bread":
-                    symbol_selections.append("ETHUSDT")
-                if bot_selections == "French Toast":
-                    symbol_selections.append("BTCUSDT")
+                if no_errors:
+                    df = filt_df(df, cheader, symbol_selections)
 
-                df = filt_df(df, cheader, symbol_selections)
-
-                if len(df) == 0:
-                    st.error("There are no available trades matching your selections. Please try again!")
-                    no_errors = False
-
-            if no_errors:        
-                ## reformating / necessary calculations 
-                if logtype == 'BitGet':
-                    try: 
-                        badcol = df.filter(regex='Unnamed').columns.values[0] 
-                    except: 
-                        badcol = []
-                    df = df[[col for col in df.columns if col != badcol]]
-                    df = df[df[plheader] != 0]
-                if logtype == 'MEXC':
-                    df = df[df[plheader] != 0]
-                    # collapse on transaction ID then calculate oppsition prices!!!
-                if logtype == "Kraken":
-                    df = df.replace('\r\n','', regex=True) 
-                    df[otimeheader] = [str(time.split(".")[0]) for time in df[otimeheader].values]
-                    df = df[df['type']=='margin']
-                    df[plheader] = df[plheader]-df['fee']
-                    fmat = '%Y-%m-%d %H:%M:%S'
                     if len(df) == 0:
-                        st.error("File Type Error. Please upload a Ledger history file from Kraken.")
+                        st.error("There are no available trades matching your selections. Please try again!")
                         no_errors = False
 
-            if no_errors:
-                dateheader = 'Trade Date'
-                theader = 'Trade Time'
+                if no_errors:        
+                    ## reformating / necessary calculations 
+                    if logtype == 'BitGet':
+                        try: 
+                            badcol = df.filter(regex='Unnamed').columns.values[0] 
+                        except: 
+                            badcol = []
+                        df = df[[col for col in df.columns if col != badcol]]
+                        df = df[df[plheader] != 0]
+                    if logtype == 'MEXC':
+                        df = df[df[plheader] != 0]
+                        # collapse on transaction ID then calculate oppsition prices!!!
+                    if logtype == "Kraken":
+                        df = df.replace('\r\n','', regex=True) 
+                        df[otimeheader] = [str(time.split(".")[0]) for time in df[otimeheader].values]
+                        df = df[df['type']=='margin']
+                        df[plheader] = df[plheader]-df['fee']
+                        fmat = '%Y-%m-%d %H:%M:%S'
+                        if len(df) == 0:
+                            st.error("File Type Error. Please upload a Ledger history file from Kraken.")
+                            no_errors = False
 
-                df[dateheader] = [tradetimes.split(" ")[0] for tradetimes in df[otimeheader].values]
-                df[theader] = [tradetimes.split(" ")[1] for tradetimes in df[otimeheader].values]
+                if no_errors:
+                    dateheader = 'Trade Date'
+                    theader = 'Trade Time'
 
-                dfmat = fmat.split(" ")[0]
-                tfmat = fmat.split(" ")[1]
+                    df[dateheader] = [tradetimes.split(" ")[0] for tradetimes in df[otimeheader].values]
+                    df[theader] = [tradetimes.split(" ")[1] for tradetimes in df[otimeheader].values]
 
-                df[otimeheader]= [datetime.strptime(date+' '+time,fmat) 
-                                          for date,time in zip(df[dateheader],df[theader])]
+                    dfmat = fmat.split(" ")[0]
+                    tfmat = fmat.split(" ")[1]
 
-                df[dateheader] = [datetime.strptime(date,dfmat).date() for date in df[dateheader].values]
-                df[theader] = [datetime.strptime(time,tfmat).time() for time in df[theader].values]
+                    df[otimeheader]= [datetime.strptime(date+' '+time,fmat) 
+                                              for date,time in zip(df[dateheader],df[theader])]
 
-                df[otimeheader] = pd.to_datetime(df[otimeheader])
+                    df[dateheader] = [datetime.strptime(date,dfmat).date() for date in df[dateheader].values]
+                    df[theader] = [datetime.strptime(time,tfmat).time() for time in df[theader].values]
 
-                df.sort_values(by=otimeheader, inplace=True)
-                df.index = range(0,len(df))
+                    df[otimeheader] = pd.to_datetime(df[otimeheader])
 
-                start = df.iloc[0][dateheader] if (not startdate) else startdate
-                stop = df.iloc[len(df)-1][dateheader] if (not enddate) else enddate
+                    df.sort_values(by=otimeheader, inplace=True)
+                    df.index = range(0,len(df))
 
-                results_df = pd.DataFrame([], columns = ['Coin', '# of Trades', 'Wins', 'Losses', 'Win Rate', 'Profit Factor', 'Cum. P/L', 'Cum. P/L (%)', 'Avg. P/L', 'Avg. P/L (%)'])
+                    start = df.iloc[0][dateheader] if (not startdate) else startdate
+                    stop = df.iloc[len(df)-1][dateheader] if (not enddate) else enddate
 
-                for currency in pd.unique(df[cheader]): 
-                    df_coin = df[(df[cheader] == currency) & (df[dateheader] >= start) & (df[dateheader] <= stop)]
-                    data = get_coin_info(df_coin, principal_balance, plheader)
-                    results_df.loc[len(results_df)] = list([currency]) + list(i for i in data)
+                    results_df = pd.DataFrame([], columns = ['Coin', '# of Trades', 'Wins', 'Losses', 'Win Rate', 
+                                                             'Profit Factor', 'Cum. P/L', 'Cum. P/L (%)', 'Avg. P/L', 'Avg. P/L (%)'])
 
-                if bot_selections == "Other" and len(pd.unique(df[cheader])) > 1: 
-                    df_dates = df[(df[dateheader] >= start) & (df[dateheader] <= stop)]
-                    data = get_coin_info(df_dates, principal_balance, plheader)
-                    results_df.loc[len(results_df)] = list(['Total']) + list(i for i in data)
+                    for currency in pd.unique(df[cheader]): 
+                        df_coin = df[(df[cheader] == currency) & (df[dateheader] >= start) & (df[dateheader] <= stop)]
+                        data = get_coin_info(df_coin, principal_balance, plheader)
+                        results_df.loc[len(results_df)] = list([currency]) + list(i for i in data)
 
-                account_plural = "s" if len(bot_selections) > 1 else ""
-                st.subheader(f"Results for your Account{account_plural}")
-                totals = results_df[~(results_df['Coin'] == 'Total')].groupby('Coin', as_index=False).sum()
-                if len(bot_selections) > 1:
-                    st.metric(
-                        "Gains for All Accounts",
-                        f"${totals['Cum. P/L'].sum():.2f}",
-                        f"{totals['Cum. P/L (%)'].sum():.2f} %",
-                    )
+                    if bot_selections == "Other" and len(pd.unique(df[cheader])) > 1: 
+                        df_dates = df[(df[dateheader] >= start) & (df[dateheader] <= stop)]
+                        data = get_coin_info(df_dates, principal_balance, plheader)
+                        results_df.loc[len(results_df)] = list(['Total']) + list(i for i in data)
 
-                max_col = 4
-                tot_rows = int(np.ceil(len(totals)/max_col))
-
-                for r in np.arange(0,tot_rows): 
-                    #for column, row in zip(st.columns(len(totals)), totals.itertuples()):
-                    for column, row in zip(st.columns(max_col), totals.iloc[r*max_col:(r+1)*max_col].itertuples()):
-                        column.metric(
-                            row.Coin,
-                            f"${row._7:.2f}",
-                            f"{row._8:.2f} %",
+                    account_plural = "s" if len(bot_selections) > 1 else ""
+                    st.subheader(f"Results for your Account{account_plural}")
+                    totals = results_df[~(results_df['Coin'] == 'Total')].groupby('Coin', as_index=False).sum()
+                    if len(bot_selections) > 1:
+                        st.metric(
+                            "Gains for All Accounts",
+                            f"${totals['Cum. P/L'].sum():.2f}",
+                            f"{totals['Cum. P/L (%)'].sum():.2f} %",
                         )
-                st.subheader(f"Historical Performance")
-                cmap=LinearSegmentedColormap.from_list('rg',["r", "grey", "g"], N=100) 
-                df['Cumulative P/L'] = df[plheader].cumsum()
-                st.line_chart(data=df, x=dateheader, y='Cumulative P/L', use_container_width=True)
-                st.subheader("Summarized Results")
-                if df.empty:
-                    st.error("Oops! None of the data provided matches your selection(s). Please try again.")
-                else:
-                    st.dataframe(results_df.style.format({'Win Rate': '{:.2f}%','Profit Factor' : '{:.2f}', 'Avg. P/L (%)': '{:.2f}%', 'Cum. P/L (%)': '{:.2f}%', 'Cum. P/L': '{:.2f}', 'Avg. P/L': '{:.2f}'})\
-                .text_gradient(subset=['Win Rate'],cmap=cmap, vmin = 0, vmax = 100)\
-                .text_gradient(subset=['Profit Factor'],cmap=cmap, vmin = 0, vmax = 2), use_container_width=True)
 
+                    max_col = 4
+                    tot_rows = int(np.ceil(len(totals)/max_col))
+
+                    for r in np.arange(0,tot_rows): 
+                        #for column, row in zip(st.columns(len(totals)), totals.itertuples()):
+                        for column, row in zip(st.columns(max_col), totals.iloc[r*max_col:(r+1)*max_col].itertuples()):
+                            column.metric(
+                                row.Coin,
+                                f"${row._7:.2f}",
+                                f"{row._8:.2f} %",
+                            )
+                    st.subheader(f"Historical Performance")
+                    cmap=LinearSegmentedColormap.from_list('rg',["r", "grey", "g"], N=100) 
+                    df['Cumulative P/L'] = df[plheader].cumsum()
+                    st.line_chart(data=df, x=dateheader, y='Cumulative P/L', use_container_width=True)
+                    st.subheader("Summarized Results")
+                    if df.empty:
+                        st.error("Oops! None of the data provided matches your selection(s). Please try again.")
+                    else:
+                        st.dataframe(results_df.style.format({'Win Rate': '{:.2f}%','Profit Factor' : '{:.2f}', 
+                                                              'Avg. P/L (%)': '{:.2f}%', 'Cum. P/L (%)': '{:.2f}%', 
+                                                              'Cum. P/L': '{:.2f}', 'Avg. P/L': '{:.2f}'})\
+                    .text_gradient(subset=['Win Rate'],cmap=cmap, vmin = 0, vmax = 100)\
+                    .text_gradient(subset=['Profit Factor'],cmap=cmap, vmin = 0, vmax = 2), use_container_width=True)
+
+        if logtype == "BreadBytes Historical Logs" and no_errors:
+            
+            bots = ["Cinnamon Toast", "French Toast", "Short Bread", "Cosmic Cupcake"]
+            bot_selections = st.selectbox("Select your Trading Bot", options=bots)
+            otimeheader = 'Exit Date'
+            fmat = '%Y-%m-%d %H:%M:%S'
+            fees = .075/100
+            dollar_cap = 30000.00
+
+            if bot_selections == "Cinnamon Toast":
+                lev_cap = 5
+                data = load_data("CT-Trade-Log.csv",otimeheader, fmat)
+            if bot_selections == "French Toast":
+                lev_cap = 3
+                data = load_data("FT-Trade-Log.csv",otimeheader, fmat)
+            if bot_selections == "Short Bread":
+                lev_cap = 5
+                data = load_data("SB-Trade-Log.csv",otimeheader, fmat)
+            if bot_selections == "Cosmic Cupcake":
+                lev_cap = 3
+                data = load_data("CC-Trade-Log.csv",otimeheader, fmat)
+
+            df = data.copy(deep=True)
+
+            dateheader = 'Date'
+            theader = 'Time'
+            
+            st.subheader("Choose your settings:")
+            with st.form("user input", ):
+                if no_errors:
+                    with st.container():
+                        col1, col2 = st.columns(2)
+                        with col1:
+                            try:
+                                startdate = st.date_input("Start Date", value=pd.to_datetime(df[otimeheader]).min())
+                            except:
+                                st.error("Please select your exchange or upload a supported trade log file.")
+                                no_errors = False 
+                        with col2:
+                            try:
+                                enddate = st.date_input("End Date", value=datetime.today())
+                            except:
+                                st.error("Please select your exchange or upload a supported trade log file.")
+                                no_errors = False 
+                        #st.sidebar.subheader("Customize your Dashboard")
+
+                        if no_errors and (enddate < startdate): 
+                            st.error("End Date must be later than Start date. Please try again.")
+                            no_errors = False 
+                    with st.container(): 
+                        col1,col2 = st.columns(2) 
+                        with col2:
+                            lev = st.number_input('Leverage', min_value=1, value=1, max_value= lev_cap, step=1)
+                        with col1:
+                            principal_balance = st.number_input('Starting Balance', min_value=0.00, value=1000.00, max_value= dollar_cap, step=.01)
+                
+                if bot_selections == "Cinnamon Toast":
+                    with st.container():
+                        col1, col2, col3, col4 = st.columns(4)
+                        with col1: 
+                            dca1 = st.number_input('DCA 1 Allocation', min_value=0, value=25, max_value= 100, step=1)
+                        with col2: 
+                            dca2 = st.number_input('DCA 2 Allocation', min_value=0, value=25, max_value= 100, step=1)
+                        with col3: 
+                            dca3 = st.number_input('DCA 3 Allocation', min_value=0, value=25, max_value= 100, step=1)
+                        with col4: 
+                            dca4 = st.number_input('DCA 4 Allocation', min_value=0, value=25, max_value= 100, step=1)
+
+                #hack way to get button centered 
+                c = st.columns(9)
+                with c[4]: 
+                    submitted = st.form_submit_button("Get Cookin'!")           
+
+            if submitted and principal_balance * lev > dollar_cap:
+                lev = np.floor(dollar_cap/principal_balance)
+                st.error(f"WARNING: (Starting Balance)*(Leverage) exceeds the ${dollar_cap} limit. Using maximum available leverage of {lev}")
+
+            if submitted and no_errors:
+                df = df[(df[dateheader] >= startdate) & (df[dateheader] <= enddate)]
+                signal_map = {'Long': 1, 'Short':-1}
+                
+                if len(df) == 0:
+                        st.error("There are no available trades matching your selections. Please try again!")
+                        no_errors = False
+                if no_errors:
+                    if bot_selections == "Cinnamon Toast":
+                        dca_map = {1: dca1/100, 2: dca2/100, 3: dca3/100, 4: dca4/100}
+                        df['DCA %'] = df['DCA'].map(dca_map)
+                        df['Calculated Return %'] = df['Signal'].map(signal_map)*(df['DCA %'])*(1-fees)*((df['Sell Price']-df['Buy Price'])/df['Buy Price'] - fees) #accounts for fees on open and close of trade 
+                        df['Return Per Trade'] = np.nan
+                        g = df.groupby('Exit Date').sum(numeric_only=True)['Calculated Return %'].reset_index(name='Return Per Trade')
+                        df.loc[df['DCA']==1.0,'Return Per Trade'] = 1+g['Return Per Trade'].values
+                    else: 
+                        df['Calculated Return %'] = df['Signal'].map(signal_map)*(1-fees)*((df['Sell Price']-df['Buy Price'])/df['Buy Price'] - fees) #accounts for fees on open and close of trade 
+                        df['Return Per Trade'] = np.nan
+                        g = df.groupby('Exit Date').sum(numeric_only=True)['Calculated Return %'].reset_index(name='Return Per Trade')
+                        df['Return Per Trade'] = 1+g['Return Per Trade'].values
+                        
+                    df['Compounded Return'] = df['Return Per Trade'].cumprod()
+                    df['Balance used in Trade'] = [min(dollar_cap/lev, bal*principal_balance) for bal in df['Compounded Return']]
+                    df['Net P/L Per Trade'] = (df['Return Per Trade']-1)*lev*df['Balance used in Trade'] 
+                    df['Cumulative P/L'] = df['Net P/L Per Trade'].cumsum()
+                    cum_pl = df.loc[df.dropna().index[-1],'Cumulative P/L'] + principal_balance
+
+                    effective_return = 100*((cum_pl - principal_balance)/principal_balance)
+
+                    st.header(f"{bot_selections} Results")
+                    if len(bot_selections) > 1:
+                        st.metric(
+                            "Total Account Balance",
+                            f"${cum_pl:.2f}",
+                            f"{100*(cum_pl-principal_balance)/(principal_balance):.2f} %",
+                        )
+
+                    st.line_chart(data=df.dropna(), x='Exit Date', y='Cumulative P/L', use_container_width=True)
+
+                    df['Per Trade Return Rate'] = df['Return Per Trade']-1
+
+                    totals = pd.DataFrame([], columns = ['# of Trades', 'Wins', 'Losses', 'Win Rate', 'Profit Factor'])
+                    data = get_hist_info(df.dropna(), principal_balance,'Per Trade Return Rate')
+                    totals.loc[len(totals)] = list(i for i in data)
+
+                    totals['Cum. P/L'] = cum_pl-principal_balance
+                    totals['Cum. P/L (%)'] = 100*(cum_pl-principal_balance)/principal_balance
+                    if df.empty:
+                        st.error("Oops! None of the data provided matches your selection(s). Please try again.")
+                    else:
+                        for row in totals.itertuples():
+                            col1, col2, col3, col4 = st.columns(4)
+                            c1, c2, c3, c4 = st.columns(4)
+                            with col1:
+                                st.metric(
+                                    "Total Trades",
+                                    f"{row._1:.0f}",
+                                )
+                            with c1:
+                                st.metric(
+                                    "Profit Factor",
+                                    f"{row._5:.2f}",
+                                )
+                            with col2: 
+                                st.metric(
+                                    "Wins",
+                                    f"{row.Wins:.0f}",
+                                )
+                            with c2:
+                                st.metric(
+                                    "Cumulative P/L",
+                                    f"${row._6:.2f}",
+                                    f"{row._7:.2f} %",
+                                )
+                            with col3: 
+                                st.metric(
+                                    "Losses",
+                                    f"{row.Losses:.0f}",
+                                )
+                            with c3:
+                                st.metric(
+                                "Rolling 7 Days",
+                                    "",#f"{(1+get_rolling_stats(df,otimeheader, 30))*principal_balance:.2f}",
+                                    f"{get_rolling_stats(df,lev, otimeheader, 7):.2f}%",
+                                )
+                                st.metric(
+                                "Rolling 30 Days",
+                                    "",#f"{(1+get_rolling_stats(df,otimeheader, 30))*principal_balance:.2f}",
+                                    f"{get_rolling_stats(df,lev, otimeheader, 30):.2f}%",
+                                )
+
+                            with col4: 
+                                st.metric(
+                                    "Win Rate",
+                                    f"{row._4:.1f}%",
+                                )
+                            with c4:
+                                st.metric(
+                                "Rolling 90 Days",
+                                    "",#f"{(1+get_rolling_stats(df,otimeheader, 30))*principal_balance:.2f}",
+                                    f"{get_rolling_stats(df,lev, otimeheader, 90):.2f}%",
+                                )
+                                st.metric(
+                                "Rolling 180 Days",
+                                    "",#f"{(1+get_rolling_stats(df,otimeheader, 30))*principal_balance:.2f}",
+                                    f"{get_rolling_stats(df,lev, otimeheader, 180):.2f}%",
+                                )
+            if logtype == "Cinnamon Toast":
+                if submitted:                     
+                    grouped_df = df.groupby('Exit Date').agg({'Signal':'min','Entry Date': 'min','Exit Date': 'max','Buy Price': 'mean',
+                                             'Sell Price' : 'max',
+                                             'P/L per token': 'mean', 
+                                             'Calculated Return %' : lambda x: np.round(100*lev*x.sum(),2), 
+                                             'DCA': 'max'})
+                    grouped_df.index = range(1, len(grouped_df)+1)
+                    grouped_df.rename(columns={'DCA' : '# of DCAs', 'Buy Price':'Avg. Buy Price',
+                                               'P/L per token':'Avg. P/L per token', 
+                                               'Calculated Return %':'P/L %'}, inplace=True)
+                else: 
+                    grouped_df = df.groupby('Exit Date').agg({'Signal':'min','Entry Date': 'min','Exit Date': 'max','Buy Price': 'mean',
+                                             'Sell Price' : 'max',
+                                             'P/L per token': 'mean', 
+                                             'P/L %':lambda x: np.round(x.sum()/4,2), 
+                                             'DCA': 'max'})
+                    grouped_df.index = range(1, len(grouped_df)+1)
+                    grouped_df.rename(columns={'DCA' : '# of DCAs', 'Buy Price':'Avg. Buy Price',
+                                               'P/L per token':'Avg. P/L per token'}, inplace=True)
+
+                st.subheader("Trade Logs")
+                st.dataframe(grouped_df.style.format({'Avg. Buy Price': '${:.2f}', 'Sell Price': '${:.2f}','# of DCAs':'{:.0f}', 'Avg. P/L per token':'${:.2f}', 'P/L %' :'{:.2f}%'})\
+                .applymap(my_style,subset=['Avg. P/L per token'])\
+                .applymap(my_style,subset=['P/L %']), use_container_width=True)
+                
+            else: 
+                if submitted: 
+                    grouped_df = df.groupby('Exit Date').agg({'Signal':'min','Entry Date': 'min','Exit Date': 'max','Buy Price': 'mean',
+                                             'Sell Price' : 'max',
+                                             'P/L per token': 'mean', 
+                                             'Calculated Return %' : lambda x: np.round(100*lev*x.sum(),2)})
+                    grouped_df.index = range(1, len(grouped_df)+1)
+                    grouped_df.rename(columns={'Buy Price':'Avg. Buy Price',
+                                               'P/L per token':'Avg. P/L per token', 
+                                               'Calculated Return %':'P/L %'}, inplace=True)        
+                else: 
+                    grouped_df = df.groupby('Exit Date').agg({'Signal':'min','Entry Date': 'min','Exit Date': 'max','Buy Price': 'mean',
+                                             'Sell Price' : 'max',
+                                             'P/L per token': 'mean', 
+                                             'P/L %':lambda x: np.round(x.sum()/4,2)})
+                    grouped_df.index = range(1, len(grouped_df)+1)
+                    grouped_df.rename(columns={'Buy Price':'Avg. Buy Price',
+                                               'P/L per token':'Avg. P/L per token'}, inplace=True)
+                st.subheader("Trade Logs")
+                st.dataframe(grouped_df.style.format({'Avg. Buy Price': '${:.2f}', 'Sell Price': '${:.2f}', 'Avg. P/L per token':'${:.2f}', 'P/L %':'{:.2f}%'})\
+                .applymap(my_style,subset=['Avg. P/L per token'])\
+                .applymap(my_style,subset=['P/L %']), use_container_width=True)
+            
+                
 if __name__ == "__main__":
     st.set_page_config(
         "Trading Bot Dashboard",
