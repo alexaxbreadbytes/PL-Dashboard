@@ -5,4 +5,5 @@ matplotlib
 pathlib
 plotly
 altair
+openpyxl
 streamlit
