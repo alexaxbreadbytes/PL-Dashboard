@@ -375,7 +375,7 @@ def runapp() -> None:
             #         )##.properties(title="Testing")
             #         st.altair_chart(chart, use_container_width=True)
                     ########################
-                    cmap=LinearSegmentedColormap.from_list('rg',["r", "k", "g"], N=256) 
+                    cmap=LinearSegmentedColormap.from_list('rg',["r", "k", "g"], N=100) 
                     #new_row = pd.DataFrame(dict(zip(df.columns, [None]*len(df.columns))), index = [0])
                     #new_row[plheader] = principal_balance
                     #new_row[dateheader] = df.loc[0,dateheader]
