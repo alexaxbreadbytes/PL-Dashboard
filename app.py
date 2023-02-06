@@ -367,7 +367,7 @@ def runapp() -> None:
                 st.subheader(f"Historical Performance")
                 cmap=LinearSegmentedColormap.from_list('rg',["r", "grey", "g"], N=100) 
                 df['Cumulative P/L'] = df[plheader].cumsum()
-                st.line_chart(data=df, x=otimeheader, y='Cumulative P/L', use_container_width=True)
+                st.line_chart(data=df, x=dateheader, y='Cumulative P/L', use_container_width=True)
                 st.subheader("Summarized Results")
                 if df.empty:
                     st.error("Oops! None of the data provided matches your selection(s). Please try again.")
