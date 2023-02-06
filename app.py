@@ -25,6 +25,7 @@ import streamlit as st
 import plotly.express as px
 import altair as alt
 import dateutil.parser
+from  matplotlib.colors import LinearSegmentedColormap
 
 
 # +
@@ -374,7 +375,7 @@ def runapp() -> None:
             #         )##.properties(title="Testing")
             #         st.altair_chart(chart, use_container_width=True)
                     ########################
-
+                    cmap=LinearSegmentedColormap.from_list('rg',["r", "k", "g"], N=256) 
                     #new_row = pd.DataFrame(dict(zip(df.columns, [None]*len(df.columns))), index = [0])
                     #new_row[plheader] = principal_balance
                     #new_row[dateheader] = df.loc[0,dateheader]
@@ -394,8 +395,8 @@ def runapp() -> None:
                         #st.dataframe(results_df.style.background_gradient(subset=['Win Rate', 'Profit Factor', 'Cum. P/L (%)', 'Avg. P/L (%)'], cmap="RdYlGn"), width = 100)
                         #st.dataframe(results_df.style.background_gradient(subset=['Profit Factor'], cmap="RdYlGn", vmin = -1, vmax=1), use_container_width=True)
                         st.dataframe(results_df.style.format({'Win Rate': '{:.2f}%','Profit Factor' : '{:.2f}', 'Avg. P/L (%)': '{:.2f}%', 'Cum. P/L (%)': '{:.2f}%', 'Cum. P/L': '{:.2f}', 'Avg. P/L': '{:.2f}'})\
-                    .background_gradient(subset=['Win Rate'],cmap="RdYlGn", vmin = 0, vmax = 100)\
-                    .background_gradient(subset=['Profit Factor'],cmap="RdYlGn", vmin = 0, vmax = 2), use_container_width=True)
+                    .background_gradient(subset=['Win Rate'],cmap=cmap, vmin = 0, vmax = 100)\
+                    .background_gradient(subset=['Profit Factor'],cmap=cmap, vmin = 0, vmax = 2), use_container_width=True)
                     #.highlight_min(subset=['Cum. P/L (%)', 'Avg. P/L (%)'], color='lightred')\
                     #.highlight_max(subset=['Cum. P/L (%)', 'Avg. P/L (%)'], color='green'), use_container_width=True)
                     #.background_gradient(subset=['Cum. P/L (%)', 'Avg. P/L (%)'],cmap="RdYlGn", vmin = -1, vmax = 1), use_container_width=True)
