@@ -300,6 +300,7 @@ def runapp() -> None:
                 if logtype == "Kraken":
                     df = df.replace('\r\n','', regex=True) 
                     df[otimeheader] = [str(time.split(".")[0]) for time in df[otimeheader].values]
+                    df = df[df['type']=='margin']
                     df[plheader] = df[plheader]-df['fee']
                     fmat = '%Y-%m-%d %H:%M:%S'
                     if len(df) == 0:
