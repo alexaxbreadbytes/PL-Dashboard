@@ -186,9 +186,9 @@ def runapp() -> None:
         st.session_state['auth_user'] == True
     except:
         st.error("Please log in.")
-        break
+        return
     
-    if st.session_state['auth_user'] == True:     
+    if st.session_state['auth_user'] == True     
         st.sidebar.header("FAQ")
 
         with st.sidebar.subheader("FAQ"):
