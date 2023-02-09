@@ -78,6 +78,7 @@ def load_data(filename, otimeheader,fmat):
     df = pd.read_csv(open(filename,'r'), sep='\t') # so as not to mutate cached value 
     df.columns = ['Trade','Signal','Entry Date','Buy Price', 'Sell Price','Exit Date', 'P/L per token', 'P/L %']
     
+    df['Signal'] = df['Signal'].str.replace(' ', '', regex=True)
     df['Buy Price'] = df['Buy Price'].str.replace('$', '', regex=True)
     df['Sell Price'] = df['Sell Price'].str.replace('$', '', regex=True)
     df['Buy Price'] = df['Buy Price'].str.replace(',', '', regex=True)
