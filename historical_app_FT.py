@@ -164,7 +164,11 @@ def runapp():
         #hack way to get button centered 
         c = st.columns(9)
         with c[4]: 
-            submitted = st.form_submit_button("Get Cookin'!")           
+            submitted = st.form_submit_button("Get Cookin'!")  
+    
+    signal_map = {'Long': 1, 'Short':-1} # 1 for long #-1 for short
+    df['Calculated Return %'] = (1-fees)*(df['Signal'].map(signal_map)*(df['Sell Price']-df['Buy Price'])/df['Buy Price'] - fees) #accounts for fees on open and close of trade 
+
     
     if submitted and principal_balance * lev > dollar_cap:
         lev = np.floor(dollar_cap/principal_balance)
@@ -177,16 +181,12 @@ def runapp():
                 st.error("There are no available trades matching your selections. Please try again!")
                 no_errors = False
         if no_errors:
-
-            signal_map = {'Long': 1, 'Short':-1} # 1 for long #-1 for short
-
-            df['Calculated Return %'] = df['Signal'].map(signal_map)*(1-fees)*((df['Sell Price']-df['Buy Price'])/df['Buy Price'] - fees) #accounts for fees on open and close of trade 
-
-            df['Return Per Trade'] = 1+df['Calculated Return %'].values
+            df['Return Per Trade'] = 1+lev*df['Calculated Return %'].values
 
             df['Compounded Return'] = df['Return Per Trade'].cumprod()
-            df['Balance used in Trade'] = [min(dollar_cap/lev, bal*principal_balance) for bal in df['Compounded Return']]
-            df['Net P/L Per Trade'] = (df['Return Per Trade']-1)*lev*df['Balance used in Trade'] 
+            df['New Balance'] = [min(dollar_cap/lev, bal*principal_balance) for bal in df['Compounded Return']]
+            df['Balance used in Trade'] = np.concatenate([[principal_balance], df['New Balance'].values[:-1]])
+            df['Net P/L Per Trade'] = (df['Return Per Trade']-1)*df['Balance used in Trade']
             df['Cumulative P/L'] = df['Net P/L Per Trade'].cumsum()
             cum_pl = df.loc[df.dropna().index[-1],'Cumulative P/L'] + principal_balance
 
@@ -280,23 +280,25 @@ def runapp():
     if submitted: 
         grouped_df = df.groupby('Exit Date').agg({'Signal':'min','Entry Date': 'min','Exit Date': 'max','Buy Price': 'mean',
                                  'Sell Price' : 'max',
-                                 'P/L per token': 'mean', 
+                                 'Net P/L Per Trade': 'mean', 
                                  'Calculated Return %' : lambda x: np.round(100*lev*x.sum(),2)})
         grouped_df.index = range(1, len(grouped_df)+1)
         grouped_df.rename(columns={'Buy Price':'Avg. Buy Price',
-                                   'P/L per token':'Avg. P/L per token', 
+                                   'Net P/L Per Trade':'Net P/L', 
                                    'Calculated Return %':'P/L %'}, inplace=True)        
     else: 
         grouped_df = df.groupby('Exit Date').agg({'Signal':'min','Entry Date': 'min','Exit Date': 'max','Buy Price': 'mean',
                                  'Sell Price' : 'max',
                                  'P/L per token': 'mean', 
-                                 'P/L %':lambda x: np.round(x.sum()/4,2)})
+                                 'Calculated Return %' : lambda x: np.round(100*x.sum(),2)})
         grouped_df.index = range(1, len(grouped_df)+1)
         grouped_df.rename(columns={'Buy Price':'Avg. Buy Price',
-                                   'P/L per token':'Avg. P/L per token'}, inplace=True)
+                                   'P/L per token':'Net P/L', 
+                                   'Calculated Return %':'P/L %'}, inplace=True)  
+
     st.subheader("Trade Logs")
-    st.dataframe(grouped_df.style.format({'Avg. Buy Price': '${:.2f}', 'Sell Price': '${:.2f}', 'Avg. P/L per token':'${:.2f}', 'P/L %':'{:.2f}%'})\
-    .applymap(my_style,subset=['Avg. P/L per token'])\
+    st.dataframe(grouped_df.style.format({'Avg. Buy Price': '${:.2f}', 'Sell Price': '${:.2f}', 'Net P/L':'${:.2f}', 'P/L %':'{:.2f}%'})\
+    .applymap(my_style,subset=['Net P/L'])\
     .applymap(my_style,subset=['P/L %']), use_container_width=True)
     
 if __name__ == "__main__":
