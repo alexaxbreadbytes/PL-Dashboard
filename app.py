@@ -139,14 +139,19 @@ def get_hist_info(df_coin, principal_balance,plheader):
 
 @st.experimental_memo
 def get_rolling_stats(df, lev, otimeheader, days):
-    rollend = datetime.today()-timedelta(days=days)
-    rolling_df = df[df[otimeheader] >= rollend]
+    max_roll = (df[otimeheader].max() - df[otimeheader].min()).days
+    
+    if max_roll >= days:
+        rollend = df[otimeheader].max()-timedelta(days=days)
+        rolling_df = df[df[otimeheader] >= rollend]
 
-    if len(rolling_df) > 0:
-        rolling_perc = rolling_df['Return Per Trade'].dropna().cumprod().values[-1]-1
-    else: 
-        rolling_perc = 0
-    return 100*lev*rolling_perc
+        if len(rolling_df) > 0:
+            rolling_perc = rolling_df['Return Per Trade'].dropna().cumprod().values[-1]-1
+        else: 
+            rolling_perc = np.nan
+    else:
+        rolling_perc = np.nan
+    return 100*rolling_perc
 @st.experimental_memo
 def cc_coding(row):
     return ['background-color: orange'] * len(row) if row['Exit Date'] <= datetime.strptime('2022-12-16 00:00:00','%Y-%m-%d %H:%M:%S').date() else [''] * len(row)
@@ -180,6 +185,7 @@ def load_data(filename, otimeheader, fmat):
     else: 
         df.columns = ['Trade','Signal','Entry Date','Buy Price', 'Sell Price','Exit Date', 'P/L per token', 'P/L %']
     
+    df['Signal'] = df['Signal'].str.replace(' ', '', regex=True)
     df['Buy Price'] = df['Buy Price'].str.replace('$', '', regex=True)
     df['Sell Price'] = df['Sell Price'].str.replace('$', '', regex=True)
     df['Buy Price'] = df['Buy Price'].str.replace(',', '', regex=True)
@@ -519,18 +525,28 @@ def runapp() -> None:
                         dca_map = {1: dca1/100, 2: dca2/100, 3: dca3/100, 4: dca4/100}
                         df['DCA %'] = df['DCA'].map(dca_map)
                         df['Calculated Return %'] = df['Signal'].map(signal_map)*(df['DCA %'])*(1-fees)*((df['Sell Price']-df['Buy Price'])/df['Buy Price'] - fees) #accounts for fees on open and close of trade 
+                        
                         df['Return Per Trade'] = np.nan
+                        df['Balance used in Trade'] = np.nan
+                        df['New Balance'] = np.nan
+
+                        
                         g = df.groupby('Exit Date').sum(numeric_only=True)['Calculated Return %'].reset_index(name='Return Per Trade')
-                        df.loc[df['DCA']==1.0,'Return Per Trade'] = 1+g['Return Per Trade'].values
+                        df.loc[df['DCA']==1.0,'Return Per Trade'] = 1+lev*g['Return Per Trade'].values
+                        
+                        df['Compounded Return'] = df['Return Per Trade'].cumprod()
+                        df.loc[df['DCA']==1.0,'New Balance'] = [min(dollar_cap/lev, bal*principal_balance) for bal in df.loc[df['DCA']==1.0,'Compounded Return']]
+                        df.loc[df['DCA']==1.0,'Balance used in Trade'] = np.concatenate([[principal_balance], df.loc[df['DCA']==1.0,'New Balance'].values[:-1]])
                     else: 
                         df['Calculated Return %'] = df['Signal'].map(signal_map)*(1-fees)*((df['Sell Price']-df['Buy Price'])/df['Buy Price'] - fees) #accounts for fees on open and close of trade 
                         df['Return Per Trade'] = np.nan
                         g = df.groupby('Exit Date').sum(numeric_only=True)['Calculated Return %'].reset_index(name='Return Per Trade')
-                        df['Return Per Trade'] = 1+g['Return Per Trade'].values
+                        df['Return Per Trade'] = 1+lev*g['Return Per Trade'].values
                         
-                    df['Compounded Return'] = df['Return Per Trade'].cumprod()
-                    df['Balance used in Trade'] = [min(dollar_cap/lev, bal*principal_balance) for bal in df['Compounded Return']]
-                    df['Net P/L Per Trade'] = (df['Return Per Trade']-1)*lev*df['Balance used in Trade'] 
+                        df['Compounded Return'] = df['Return Per Trade'].cumprod()
+                        df['New Balance'] = [min(dollar_cap/lev, bal*principal_balance) for bal in df['Compounded Return']]
+                        df['Balance used in Trade'] = np.concatenate([[principal_balance], df['New Balance'].values[:-1]])
+                    df['Net P/L Per Trade'] = (df['Return Per Trade']-1)*df['Balance used in Trade']
                     df['Cumulative P/L'] = df['Net P/L Per Trade'].cumsum()
                     cum_pl = df.loc[df.dropna().index[-1],'Cumulative P/L'] + principal_balance
 
@@ -619,12 +635,12 @@ def runapp() -> None:
                 if submitted:                     
                     grouped_df = df.groupby('Exit Date').agg({'Signal':'min','Entry Date': 'min','Exit Date': 'max','Buy Price': 'mean',
                                              'Sell Price' : 'max',
-                                             'P/L per token': 'mean', 
+                                             'Net P/L Per Trade': 'mean', 
                                              'Calculated Return %' : lambda x: np.round(100*lev*x.sum(),2), 
                                              'DCA': 'max'})
                     grouped_df.index = range(1, len(grouped_df)+1)
                     grouped_df.rename(columns={'DCA' : '# of DCAs', 'Buy Price':'Avg. Buy Price',
-                                               'P/L per token':'Avg. P/L per token', 
+                                               'Net P/L Per Trade':'Net P/L', 
                                                'Calculated Return %':'P/L %'}, inplace=True)
                 else: 
                     grouped_df = df.groupby('Exit Date').agg({'Signal':'min','Entry Date': 'min','Exit Date': 'max','Buy Price': 'mean',
@@ -634,38 +650,38 @@ def runapp() -> None:
                                              'DCA': 'max'})
                     grouped_df.index = range(1, len(grouped_df)+1)
                     grouped_df.rename(columns={'DCA' : '# of DCAs', 'Buy Price':'Avg. Buy Price',
-                                               'P/L per token':'Avg. P/L per token'}, inplace=True)
+                                               'P/L per token':'Net P/L'}, inplace=True)
                 
             else: 
                 if submitted: 
                     grouped_df = df.groupby('Exit Date').agg({'Signal':'min','Entry Date': 'min','Exit Date': 'max','Buy Price': 'mean',
                                              'Sell Price' : 'max',
-                                             'P/L per token': 'mean', 
+                                             'Net P/L Per Trade': 'mean', 
                                              'Calculated Return %' : lambda x: np.round(100*lev*x.sum(),2)})
                     grouped_df.index = range(1, len(grouped_df)+1)
                     grouped_df.rename(columns={'Buy Price':'Avg. Buy Price',
-                                               'P/L per token':'Avg. P/L per token', 
+                                               'Net P/L Per Trade':'Net P/L', 
                                                'Calculated Return %':'P/L %'}, inplace=True)        
                 else: 
                     grouped_df = df.groupby('Exit Date').agg({'Signal':'min','Entry Date': 'min','Exit Date': 'max','Buy Price': 'mean',
                                              'Sell Price' : 'max',
                                              'P/L per token': 'mean', 
-                                             'P/L %':lambda x: np.round(x.sum()/4,2)})
+                                             'P/L %':'mean'})
                     grouped_df.index = range(1, len(grouped_df)+1)
                     grouped_df.rename(columns={'Buy Price':'Avg. Buy Price',
-                                               'P/L per token':'Avg. P/L per token'}, inplace=True)
-                st.subheader("Trade Logs")
-                if bot_selections == "Cosmic Cupcake":
-                    st.dataframe(grouped_df.style.format({'Avg. Buy Price': '${:.2f}', 'Sell Price': '${:.2f}', 'Avg. P/L per token':'${:.2f}', 'P/L %':'{:.2f}%'})\
-                    .apply(cc_coding, axis=1)\
-                    .applymap(my_style,subset=['Avg. P/L per token'])\
-                    .applymap(my_style,subset=['P/L %']), use_container_width=True)
-                    new_title = '<div style="text-align: right;"><span style="background-color:orange;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span> Not Live Traded</div>'
-                    st.markdown(new_title, unsafe_allow_html=True)
-                else: 
-                    st.dataframe(grouped_df.style.format({'Avg. Buy Price': '${:.2f}', 'Sell Price': '${:.2f}', 'Avg. P/L per token':'${:.2f}', 'P/L %':'{:.2f}%'})\
-                    .applymap(my_style,subset=['Avg. P/L per token'])\
-                    .applymap(my_style,subset=['P/L %']), use_container_width=True)
+                                               'P/L per token':'Net P/L'}, inplace=True)
+            st.subheader("Trade Logs")
+            if bot_selections == "Cosmic Cupcake":
+                st.dataframe(grouped_df.style.format({'Avg. Buy Price': '${:.2f}', 'Sell Price': '${:.2f}', 'Net P/L':'${:.2f}', 'P/L %':'{:.2f}%'})\
+                .apply(cc_coding, axis=1)\
+                .applymap(my_style,subset=['Net P/L'])\
+                .applymap(my_style,subset=['P/L %']), use_container_width=True)
+                new_title = '<div style="text-align: right;"><span style="background-color:orange;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span> Not Live Traded</div>'
+                st.markdown(new_title, unsafe_allow_html=True)
+            else: 
+                st.dataframe(grouped_df.style.format({'Avg. Buy Price': '${:.2f}', 'Sell Price': '${:.2f}', 'Net P/L':'${:.2f}', 'P/L %':'{:.2f}%'})\
+                .applymap(my_style,subset=['Net P/L'])\
+                .applymap(my_style,subset=['P/L %']), use_container_width=True)
                                 
 if __name__ == "__main__":
     st.set_page_config(
