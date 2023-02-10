@@ -69,7 +69,7 @@ def get_headers(logtype):
         otimeheader = 'Date'
         cheader = 'Futures'
         plheader = 'Realized P/L'
-        fmat = '%Y-%m-%d %H:%M:%S.%f'
+        fmat = '%Y-%m-%d %H:%M:%S.%f'  
         
     if logtype == "MEXC":
         otimeheader = 'Trade time'
@@ -155,6 +155,8 @@ def get_rolling_stats(df, lev, otimeheader, days):
 @st.experimental_memo
 def cc_coding(row):
     return ['background-color: orange'] * len(row) if row['Exit Date'] <= datetime.strptime('2022-12-16 00:00:00','%Y-%m-%d %H:%M:%S').date() else [''] * len(row)
+def ctt_coding(row):
+    return ['background-color: orange'] * len(row) if row['Exit Date'] <= datetime.strptime('2023-01-02 00:00:00','%Y-%m-%d %H:%M:%S').date() else [''] * len(row)
 
 @st.experimental_memo
 def my_style(v, props=''):
@@ -185,19 +187,20 @@ def load_data(filename, otimeheader, fmat):
     else: 
         df.columns = ['Trade','Signal','Entry Date','Buy Price', 'Sell Price','Exit Date', 'P/L per token', 'P/L %']
     
-    df['Signal'] = df['Signal'].str.replace(' ', '', regex=True)
-    df['Buy Price'] = df['Buy Price'].str.replace('$', '', regex=True)
-    df['Sell Price'] = df['Sell Price'].str.replace('$', '', regex=True)
-    df['Buy Price'] = df['Buy Price'].str.replace(',', '', regex=True)
-    df['Sell Price'] = df['Sell Price'].str.replace(',', '', regex=True)
-    df['P/L per token'] = df['P/L per token'].str.replace('$', '', regex=True)
-    df['P/L per token'] = df['P/L per token'].str.replace(',', '', regex=True)
-    df['P/L %'] = df['P/L %'].str.replace('%', '', regex=True)
+    if filename != "CT-Toasted-Trade-Log.csv":
+        df['Signal'] = df['Signal'].str.replace(' ', '', regex=True)
+        df['Buy Price'] = df['Buy Price'].str.replace('$', '', regex=True)
+        df['Sell Price'] = df['Sell Price'].str.replace('$', '', regex=True)
+        df['Buy Price'] = df['Buy Price'].str.replace(',', '', regex=True)
+        df['Sell Price'] = df['Sell Price'].str.replace(',', '', regex=True)
+        df['P/L per token'] = df['P/L per token'].str.replace('$', '', regex=True)
+        df['P/L per token'] = df['P/L per token'].str.replace(',', '', regex=True)
+        df['P/L %'] = df['P/L %'].str.replace('%', '', regex=True)
 
-    df['Buy Price'] = pd.to_numeric(df['Buy Price'])
-    df['Sell Price'] = pd.to_numeric(df['Sell Price'])
-    df['P/L per token'] = pd.to_numeric(df['P/L per token'])
-    df['P/L %'] = pd.to_numeric(df['P/L %'])
+        df['Buy Price'] = pd.to_numeric(df['Buy Price'])
+        df['Sell Price'] = pd.to_numeric(df['Sell Price'])
+        df['P/L per token'] = pd.to_numeric(df['P/L per token'])
+        df['P/L %'] = pd.to_numeric(df['P/L %'])
 
     dateheader = 'Date'
     theader = 'Time'
@@ -206,7 +209,7 @@ def load_data(filename, otimeheader, fmat):
     df[theader] = [tradetimes.split(" ")[1] for tradetimes in df[otimeheader].values]
 
     df[otimeheader]= [dateutil.parser.parse(date+' '+time)
-                              for date,time in zip(df[dateheader],df[theader])]
+                                  for date,time in zip(df[dateheader],df[theader])]
 
     df[otimeheader] = pd.to_datetime(df[otimeheader])
     df['Exit Date'] = pd.to_datetime(df['Exit Date'])
@@ -296,9 +299,10 @@ def runapp() -> None:
                             except:
                                 st.error("Please select your exchange or upload a supported trade log file.")
                                 no_errors = False
-                            if symbol_selections == None:
+                            if no_errors and symbol_selections == None:
                                 st.error("Please select at least one asset.")
                                 no_errors = False
+
 
                 if no_errors:
                     if logtype == 'Binance':
@@ -367,7 +371,10 @@ def runapp() -> None:
                 if no_errors:
                     dateheader = 'Trade Date'
                     theader = 'Trade Time'
-
+                    
+                    if type(df[otimeheader].values[0]) != str: #clunky fix to catch non-strings since np.datetime64 unstable
+                        df[otimeheader] = [str(date) for date in df[otimeheader]]
+                        
                     df[dateheader] = [tradetimes.split(" ")[0] for tradetimes in df[otimeheader].values]
                     df[theader] = [tradetimes.split(" ")[1] for tradetimes in df[otimeheader].values]
 
@@ -425,7 +432,11 @@ def runapp() -> None:
                     st.subheader(f"Historical Performance")
                     cmap=LinearSegmentedColormap.from_list('rg',["r", "grey", "g"], N=100) 
                     df['Cumulative P/L'] = df[plheader].cumsum()
-                    st.line_chart(data=df, x=dateheader, y='Cumulative P/L', use_container_width=True)
+                    if logtype == "Binance": #Binance (utc) doesnt show up in st line charts???
+                        xx = dateheader
+                    else: 
+                        xx = otimeheader
+                    st.line_chart(data=df, x=xx, y='Cumulative P/L', use_container_width=True)
                     st.subheader("Summarized Results")
                     if df.empty:
                         st.error("Oops! None of the data provided matches your selection(s). Please try again.")
@@ -438,7 +449,7 @@ def runapp() -> None:
 
         if logtype == "BreadBytes Historical Logs" and no_errors:
             
-            bots = ["Cinnamon Toast", "French Toast", "Short Bread", "Cosmic Cupcake"]
+            bots = ["Cinnamon Toast", "French Toast", "Short Bread", "Cosmic Cupcake"]#, "CT Toasted"]
             bot_selections = st.selectbox("Select your Trading Bot", options=bots)
             otimeheader = 'Exit Date'
             fmat = '%Y-%m-%d %H:%M:%S'
@@ -457,6 +468,9 @@ def runapp() -> None:
             if bot_selections == "Cosmic Cupcake":
                 lev_cap = 3
                 data = load_data("CC-Trade-Log.csv",otimeheader, fmat)
+            if bot_selections == "CT Toasted":
+                lev_cap = 5
+                data = load_data("CT-Toasted-Trade-Log.csv",otimeheader, fmat)
 
             df = data.copy(deep=True)
 
@@ -671,9 +685,10 @@ def runapp() -> None:
                     grouped_df.rename(columns={'Buy Price':'Avg. Buy Price',
                                                'P/L per token':'Net P/L'}, inplace=True)
             st.subheader("Trade Logs")
-            if bot_selections == "Cosmic Cupcake":
+            if bot_selections == "Cosmic Cupcake" or bot_selections == "CT Toasted":
+                coding = cc_coding if bot_selections == "Cosmic Cupcake" else ctt_coding
                 st.dataframe(grouped_df.style.format({'Avg. Buy Price': '${:.2f}', 'Sell Price': '${:.2f}', 'Net P/L':'${:.2f}', 'P/L %':'{:.2f}%'})\
-                .apply(cc_coding, axis=1)\
+                .apply(coding, axis=1)\
                 .applymap(my_style,subset=['Net P/L'])\
                 .applymap(my_style,subset=['P/L %']), use_container_width=True)
                 new_title = '<div style="text-align: right;"><span style="background-color:orange;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span> Not Live Traded</div>'
