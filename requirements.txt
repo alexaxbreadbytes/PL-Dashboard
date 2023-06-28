@@ -1,9 +1,9 @@
-pandas
+pandas==1.5.2
 datetime
 numpy
 matplotlib
 pathlib
 plotly
 altair
-openpyxl
 streamlit
+altair==4.0
