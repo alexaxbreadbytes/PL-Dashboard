@@ -561,7 +561,7 @@ def runapp() -> None:
 
                     # Add trace
                     fig.add_trace(
-                        go.Scatter(x=df[xx], y=df['Cumulative P/L'], line_shape='spline', line = {'smoothing': .2, 'color' : 'rgba(31, 119, 200,.8)'}, name='Cumulative P/L')
+                        go.Scatter(x=df[xx], y=np.round(df['Cumulative P/L'].values,2), line_shape='spline', line = {'smoothing': .2, 'color' : 'rgba(31, 119, 200,.8)'}, name='Cumulative P/L')
                     )
                     
                     fig.add_layout_image(
@@ -794,9 +794,10 @@ def runapp() -> None:
 
                     # Add trace
                     fig.add_trace(
-                        go.Scatter(x=dfdata['Exit Date'], y=dfdata['Cumulative P/L'], line_shape='spline', line = {'smoothing': 1.0, 'color' : 'rgba(31, 119, 200,.8)'}, name='Cumulative P/L')
+                        go.Scatter(x=dfdata['Exit Date'], y=np.round(dfdata['Cumulative P/L'].values,2), line_shape='spline', line = {'smoothing': 1.0, 'color' : 'rgba(31, 119, 200,.8)'}, name='Cumulative P/L')
                     )
-                    fig.add_trace(go.Scatter(x=dfdata['Exit Date'], y=(principal_balance/dfdata['Buy Price'][dfdata.index[0]])*(dfdata['Buy Price']-dfdata['Buy Price'][dfdata.index[0]]), line_shape='spline', line = {'smoothing': 1.0, 'color' :'red'}, name = 'Buy & Hold Return')
+                    buyhold  = (principal_balance/dfdata['Buy Price'][dfdata.index[0]])*(dfdata['Buy Price']-dfdata['Buy Price'][dfdata.index[0]])
+                    fig.add_trace(go.Scatter(x=dfdata['Exit Date'], y=np.round(buyhold.values,2), line_shape='spline', line = {'smoothing': 1.0, 'color' :'red'}, name = 'Buy & Hold Return')
                     )
 
                     fig.add_layout_image(
