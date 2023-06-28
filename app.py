@@ -181,7 +181,10 @@ def filt_df(df, cheader, symbol_selections):
     return df
 
 def tv_reformat(close50filename):
-    data = pd.read_csv(open(close50filename,'r'), sep=',')
+    try:
+        data = pd.read_csv(open(close50filename,'r'), sep=',')
+    except: 
+        data = pd.DataFrame([])
     
     if data.empty:
         return data 
