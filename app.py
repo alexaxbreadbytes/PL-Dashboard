@@ -796,7 +796,7 @@ def runapp() -> None:
                     fig.add_trace(
                         go.Scatter(x=dfdata['Exit Date'], y=dfdata['Cumulative P/L'], line_shape='spline', 
                                    line = {'smoothing': 1.0, 'color' : 'rgba(31, 119, 200,.8)'},
-                                   hover_name = dfdata['Exit Date'],hoverdata = {'Cumulative P/L':':.2f'}, name='Cumulative P/L')
+                                   hoverlabel = {'Cumulative P/L':':.2f'}, name='Cumulative P/L')
                     )
                     buyhold  = (principal_balance/dfdata['Buy Price'][dfdata.index[0]])*(dfdata['Buy Price']-dfdata['Buy Price'][dfdata.index[0]])
                     fig.add_trace(go.Scatter(x=dfdata['Exit Date'], y=np.round(buyhold.values,2), line_shape='spline', line = {'smoothing': 1.0, 'color' :'red'}, name = 'Buy & Hold Return')
