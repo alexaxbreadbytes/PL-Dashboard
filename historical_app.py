@@ -350,6 +350,7 @@ def runapp() -> None:
             fees = .075/100
     
             st.header(f"{bot_selections} Performance Dashboard :bread: :moneybag:")
+            no_errors = True
             st.write("Welcome to the Trading Bot Dashboard by BreadBytes! You can use this dashboard to track " +
                  "the performance of our trading bots.")
 
