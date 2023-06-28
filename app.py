@@ -245,6 +245,7 @@ def load_data(filename, otimeheader, fmat):
         df['P/L %'] = pd.to_numeric(df['P/L %'])
     
     if df2.empty: 
+        df = df
     else:
         df = pd.concat([df,df2], axis=0, ignore_index=True)
     
