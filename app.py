@@ -182,36 +182,39 @@ def filt_df(df, cheader, symbol_selections):
 
 def tv_reformat(close50filename):
     data = pd.read_csv(open(close50filename,'r'), sep=',')
+    
+    if data.empty:
+        return data 
+    else:
+        entry_df = data[data['Type'] == "Entry Long"]
+        exit_df = data[data['Type']=="Exit Long"]
 
-    entry_df = data[data['Type'] == "Entry Long"]
-    exit_df = data[data['Type']=="Exit Long"]
+        entry_df.index = range(len(entry_df))
+        exit_df.index = range(len(exit_df))
 
-    entry_df.index = range(len(entry_df))
-    exit_df.index = range(len(exit_df))
+        df = pd.DataFrame([], columns=['Trade','Entry Date','Buy Price', 'Sell Price','Exit Date', 'P/L per token', 'P/L %', 'Drawdown %'])
 
-    df = pd.DataFrame([], columns=['Trade','Entry Date','Buy Price', 'Sell Price','Exit Date', 'P/L per token', 'P/L %', 'Drawdown %'])
+        df['Trade'] = entry_df['Trade #']
+        df['Entry Date'] = entry_df['Date/Time']
+        df['Buy Price'] = entry_df['Price USDT']
 
-    df['Trade'] = entry_df['Trade #']
-    df['Entry Date'] = entry_df['Date/Time']
-    df['Buy Price'] = entry_df['Price USDT']
+        df['Sell Price'] = exit_df['Price USDT']
+        df['Exit Date'] = exit_df['Date/Time']
+        df['P/L per token'] = df['Sell Price'] - df['Buy Price']
+        df['P/L %'] = exit_df['Profit %']
+        df['Drawdown %'] = exit_df['Drawdown %']
+        df['Close 50'] = [int(i == "Close 50% of Position") for i in exit_df['Signal']]
+        df.loc[df['Close 50'] == 1, 'Exit Date'] = np.copy(df.loc[df[df['Close 50'] == 1].index.values -1]['Exit Date'])
 
-    df['Sell Price'] = exit_df['Price USDT']
-    df['Exit Date'] = exit_df['Date/Time']
-    df['P/L per token'] = df['Sell Price'] - df['Buy Price']
-    df['P/L %'] = exit_df['Profit %']
-    df['Drawdown %'] = exit_df['Drawdown %']
-    df['Close 50'] = [int(i == "Close 50% of Position") for i in exit_df['Signal']]
-    df.loc[df['Close 50'] == 1, 'Exit Date'] = np.copy(df.loc[df[df['Close 50'] == 1].index.values -1]['Exit Date'])
+        grouped_df = df.groupby('Entry Date').agg({'Entry Date': 'min', 'Buy Price':'mean',
+                                 'Sell Price' : 'mean',
+                                 'Exit Date': 'max',
+                                 'P/L per token': 'mean', 
+                                 'P/L %' : 'mean'})
 
-    grouped_df = df.groupby('Entry Date').agg({'Entry Date': 'min', 'Buy Price':'mean',
-                             'Sell Price' : 'mean',
-                             'Exit Date': 'max',
-                             'P/L per token': 'mean', 
-                             'P/L %' : 'mean'})
-
-    grouped_df.insert(0,'Trade', range(len(grouped_df)))
-    grouped_df.index = range(len(grouped_df))
-    return grouped_df
+        grouped_df.insert(0,'Trade', range(len(grouped_df)))
+        grouped_df.index = range(len(grouped_df))
+        return grouped_df
 
 def load_data(filename, otimeheader, fmat):
     df = pd.read_csv(open(filename,'r'), sep='\t') # so as not to mutate cached value
@@ -241,7 +244,9 @@ def load_data(filename, otimeheader, fmat):
         df['P/L per token'] = pd.to_numeric(df['P/L per token'])
         df['P/L %'] = pd.to_numeric(df['P/L %'])
     
-    df = pd.concat([df,df2], axis=0, ignore_index=True)
+    if df2.empty: 
+    else:
+        df = pd.concat([df,df2], axis=0, ignore_index=True)
     
     if filename == "CT-Trade-Log.csv":
         df['Signal'] = ['Long']*len(df)
