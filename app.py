@@ -45,7 +45,7 @@ class color:
     UNDERLINE = '\033[4m'
     END = '\033[0m'
     
-@st.experimental_memo    
+@st.cache_data    
 def print_PL(amnt, thresh, extras = "" ):
     if amnt > 0:
         return color.BOLD + color.GREEN + str(amnt) + extras + color.END
@@ -56,7 +56,7 @@ def print_PL(amnt, thresh, extras = "" ):
     else:
         return str(amnt + extras)
     
-@st.experimental_memo      
+@st.cache_data      
 def get_headers(logtype):
     otimeheader = ""
     cheader = ""
@@ -108,7 +108,7 @@ def get_headers(logtype):
     
     return otimeheader.lower(), cheader.lower(), plheader.lower(), fmat
     
-@st.experimental_memo    
+@st.cache_data    
 def get_coin_info(df_coin, principal_balance,plheader):
     numtrades = int(len(df_coin))
     numwin = int(sum(df_coin[plheader] > 0))
@@ -129,7 +129,7 @@ def get_coin_info(df_coin, principal_balance,plheader):
     
     return numtrades, numwin, numloss, winrate, pfactor, cum_PL, cum_PL_perc, mean_PL, mean_PL_perc
 
-@st.experimental_memo
+@st.cache_data
 def get_hist_info(df_coin, principal_balance,plheader):
     numtrades = int(len(df_coin))
     numwin = int(sum(df_coin[plheader] > 0))
@@ -147,7 +147,7 @@ def get_hist_info(df_coin, principal_balance,plheader):
         pfactor = np.nan
     return numtrades, numwin, numloss, winrate, pfactor
 
-@st.experimental_memo
+@st.cache_data
 def get_rolling_stats(df, lev, otimeheader, days):
     max_roll = (df[otimeheader].max() - df[otimeheader].min()).days
     
@@ -162,13 +162,13 @@ def get_rolling_stats(df, lev, otimeheader, days):
     else:
         rolling_perc = np.nan
     return 100*rolling_perc
-@st.experimental_memo
+@st.cache_data
 def cc_coding(row):
     return ['background-color: lightgrey'] * len(row) if row['Exit Date'] <= datetime.strptime('2022-12-16 00:00:00','%Y-%m-%d %H:%M:%S').date() else [''] * len(row)
 def ctt_coding(row):
     return ['background-color: lightgrey'] * len(row) if row['Exit Date'] <= datetime.strptime('2023-01-02 00:00:00','%Y-%m-%d %H:%M:%S').date() else [''] * len(row)
 
-@st.experimental_memo
+@st.cache_data
 def my_style(v, props=''):
     props = 'color:red' if v < 0 else 'color:green'
     return props
