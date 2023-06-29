@@ -197,7 +197,7 @@ def tv_reformat(close50filename):
 
         df = pd.DataFrame([], columns=['Trade','Entry Date','Buy Price', 'Sell Price','Exit Date', 'P/L per token', 'P/L %', 'Drawdown %'])
 
-        df['Trade'] = range(len(entry_df))
+        df['Trade'] = entry_df.index
         df['Entry Date'] = entry_df['Date/Time']
         df['Buy Price'] = entry_df['Price USDT']
 
